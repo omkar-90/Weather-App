@@ -1,0 +1,26 @@
+{
+  "name": "weather-app",
+  "version": "1.0.0",
+  "description": "Production-style weather dashboard with a secure Node.js weather proxy.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "check": "node --check server.js && node --check src/app.js && node --check src/config/env.js && node --check src/services/weather.service.js"
+  },
+  "keywords": [
+    "weather",
+    "openweathermap",
+    "express",
+    "frontend"
+  ],
+  "author": "OG",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}
