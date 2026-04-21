@@ -59,6 +59,22 @@ const weatherThemes = {
     bodyClass: "weather-clear",
     status: "Bright skies",
   },
+  "few-clouds": {
+    bodyClass: "weather-few-clouds",
+    status: "Light cloud drift",
+  },
+  "scattered-clouds": {
+    bodyClass: "weather-scattered-clouds",
+    status: "Scattered cloud cover",
+  },
+  "broken-clouds": {
+    bodyClass: "weather-broken-clouds",
+    status: "Dense cloud layers",
+  },
+  overcast: {
+    bodyClass: "weather-overcast",
+    status: "Overcast skies",
+  },
   clouds: {
     bodyClass: "weather-clouds",
     status: "Soft cloud cover",
@@ -98,6 +114,42 @@ const conditionIconMap = {
         <line x1="83" y1="83" x2="95" y2="95"></line>
         <line x1="83" y1="37" x2="95" y2="25"></line>
         <line x1="25" y1="95" x2="37" y2="83"></line>
+      </g>
+    </svg>
+  `,
+  "few-clouds": `
+    <svg viewBox="0 0 160 120" class="icon-svg icon-few-clouds" role="img" aria-label="Few clouds">
+      <circle cx="52" cy="42" r="18" class="sun-core"></circle>
+      <g class="sun-rays">
+        <line x1="52" y1="12" x2="52" y2="22"></line>
+        <line x1="52" y1="62" x2="52" y2="72"></line>
+        <line x1="24" y1="42" x2="34" y2="42"></line>
+        <line x1="70" y1="42" x2="80" y2="42"></line>
+      </g>
+      <path d="M55 92h52a19 19 0 0 0 2-38 26 26 0 0 0-48-6A21 21 0 0 0 55 92Z"></path>
+    </svg>
+  `,
+  "scattered-clouds": `
+    <svg viewBox="0 0 170 120" class="icon-svg icon-scattered-clouds" role="img" aria-label="Scattered clouds">
+      <g>
+        <path d="M42 90h52a20 20 0 0 0 2-40 28 28 0 0 0-52-6A22 22 0 0 0 42 90Z"></path>
+        <path class="cloud-back" d="M82 78h48a18 18 0 0 0 2-36 25 25 0 0 0-46-6A20 20 0 0 0 82 78Z"></path>
+      </g>
+    </svg>
+  `,
+  "broken-clouds": `
+    <svg viewBox="0 0 180 128" class="icon-svg icon-broken-clouds" role="img" aria-label="Broken clouds">
+      <g>
+        <path d="M36 94h78a26 26 0 0 0 4-52 36 36 0 0 0-68-8A30 30 0 0 0 36 94Z"></path>
+        <path class="cloud-back" d="M82 84h56a20 20 0 0 0 3-40 28 28 0 0 0-52-6A22 22 0 0 0 82 84Z"></path>
+      </g>
+    </svg>
+  `,
+  overcast: `
+    <svg viewBox="0 0 190 132" class="icon-svg icon-overcast" role="img" aria-label="Overcast clouds">
+      <g>
+        <path d="M30 96h92a28 28 0 0 0 4-56 38 38 0 0 0-72-8A32 32 0 0 0 30 96Z"></path>
+        <path class="cloud-back" d="M86 88h64a22 22 0 0 0 3-44 30 30 0 0 0-56-6A24 24 0 0 0 86 88Z"></path>
       </g>
     </svg>
   `,
@@ -252,6 +304,38 @@ const cardArtMap = {
     horizon: "#ffd7b0",
     motif: "sun",
   }),
+  "few-clouds": createWeatherCardArt({
+    top: "#8ec0ff",
+    bottom: "#4978b9",
+    glow: "#ffe6a3",
+    accent: "#f6fbff",
+    horizon: "#afc8e7",
+    motif: "sun",
+  }),
+  "scattered-clouds": createWeatherCardArt({
+    top: "#7ea3d1",
+    bottom: "#3c5f8b",
+    glow: "#d7e7ff",
+    accent: "#eef5ff",
+    horizon: "#89a4c3",
+    motif: "clouds",
+  }),
+  "broken-clouds": createWeatherCardArt({
+    top: "#677d9b",
+    bottom: "#2d405d",
+    glow: "#c7d5e8",
+    accent: "#e8eef7",
+    horizon: "#6f8197",
+    motif: "clouds",
+  }),
+  overcast: createWeatherCardArt({
+    top: "#5b6b81",
+    bottom: "#243345",
+    glow: "#bcc8d8",
+    accent: "#dde4ec",
+    horizon: "#5f7084",
+    motif: "clouds",
+  }),
   clouds: createWeatherCardArt({
     top: "#90a9c7",
     bottom: "#4b6584",
@@ -331,6 +415,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentClockInterval = null;
   let lastWeatherSnapshot = fallbackWeather;
+  let currentWeatherSnapshot = null;
   let activeForecastDays = [];
   let activeHourlyForecast = [];
   let currentLocationLabel = `${fallbackWeather.name}, ${fallbackWeather.sys.country}`;
@@ -529,23 +614,39 @@ document.addEventListener("DOMContentLoaded", () => {
       ? `city=${encodeURIComponent(city)}`
       : `lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
 
-    const response = await fetch(`${WEATHER_API_BASE}/weather?${query}`);
+    let response;
+
+    try {
+      response = await fetch(`${WEATHER_API_BASE}/weather?${query}`);
+    } catch (error) {
+      throw new Error(getWeatherServiceErrorMessage());
+    }
+
     if (!response.ok) {
       const errorPayload = await safeParseJson(response);
-      throw new Error(errorPayload?.message || (response.status === 404 ? "Location not found." : "Weather service is unavailable."));
+      throw new Error(
+        errorPayload?.message
+        || (response.status === 404 ? "Location not found." : getWeatherServiceErrorMessage())
+      );
     }
 
     return response.json();
   }
 
   async function fetchForecast(lat, lon) {
-    const response = await fetch(
-      `${WEATHER_API_BASE}/forecast?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
-    );
+    let response;
+
+    try {
+      response = await fetch(
+        `${WEATHER_API_BASE}/forecast?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
+      );
+    } catch (error) {
+      throw new Error(getWeatherServiceErrorMessage());
+    }
 
     if (!response.ok) {
       const errorPayload = await safeParseJson(response);
-      throw new Error(errorPayload?.message || "Forecast service is unavailable.");
+      throw new Error(errorPayload?.message || getWeatherServiceErrorMessage());
     }
 
     return response.json();
@@ -563,6 +664,7 @@ document.addEventListener("DOMContentLoaded", () => {
     lastWeatherSnapshot = weatherData;
     currentLocationLabel = `${weatherData.name}, ${weatherData.sys.country}`;
     const currentSnapshot = buildCurrentSnapshot(weatherData, isFallback);
+    currentWeatherSnapshot = currentSnapshot;
     currentHeroBaseline = currentSnapshot;
 
     activeForecastDays = buildInteractiveForecastDays(forecastData, weatherData, currentSnapshot);
@@ -593,13 +695,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const card = document.createElement("button");
       card.type = "button";
       card.className = "forecast-card glass-tile";
+      const forecastTheme = forecast.snapshot?.theme || forecast.condition || "clouds";
       if (index === activeIndex) {
         card.classList.add("is-active");
       }
       card.innerHTML = `
         <p class="forecast-day">${forecast.day}</p>
         <p class="forecast-date">${forecast.fullDate || forecast.day}</p>
-        <div class="forecast-icon">${conditionIconMap[forecast.condition] || conditionIconMap.clouds}</div>
+        <div class="forecast-icon">${conditionIconMap[forecastTheme] || conditionIconMap.clouds}</div>
         <p class="forecast-range"><strong>${Math.round(forecast.max)}\u00B0</strong> / ${Math.round(forecast.min)}\u00B0</p>
       `;
       card.addEventListener("click", () => {
@@ -622,10 +725,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const initialHourlyIndex = getRepresentativeHourlyIndex(activeHourlyForecast, safeIndex, lastWeatherSnapshot?.timezone || 0);
     const initialHourlySnapshot = activeHourlyForecast[initialHourlyIndex]?.snapshot || {};
-    const selectedSnapshot = mergeHeroSnapshot({
-      ...(selectedForecast.snapshot || buildForecastSnapshotFromFallback(selectedForecast, safeIndex)),
-      ...initialHourlySnapshot,
-    });
+    const selectedSnapshot = safeIndex === 0 && currentWeatherSnapshot
+      ? {
+          ...currentWeatherSnapshot,
+          locationLabel: currentLocationLabel,
+          liveClock: true,
+          weatherData: lastWeatherSnapshot,
+          dateText: "",
+        }
+      : mergeHeroSnapshot(
+          buildSelectedForecastSnapshot(
+            selectedForecast.snapshot || buildForecastSnapshotFromFallback(selectedForecast, safeIndex),
+            initialHourlySnapshot,
+            selectedForecast,
+            safeIndex
+          )
+        );
 
     currentHeroBaseline = selectedSnapshot;
     renderHeroSnapshot(selectedSnapshot);
@@ -677,13 +792,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildForecastModel(forecastData, weatherData) {
+    const currentDayKey = getCurrentLocalDayKey(weatherData.timezone || 0);
+
     if (Array.isArray(forecastData)) {
       return ensureSevenForecastDays(
         forecastData.slice(0, 7).map((entry, index) => ({
           ...entry,
           day: index === 0 ? "Today" : entry.day,
           fullDate: entry.fullDate || getRelativeForecastDate(index, weatherData.timezone),
-          dayKey: entry.dayKey || getDayKey(getShiftedDate(Math.floor(Date.now() / 1000) + index * 86400, weatherData.timezone || 0)),
+          dayKey: entry.dayKey || getRelativeDayKey(index, weatherData.timezone || 0),
           snapshot: entry.snapshot || buildForecastSnapshotFromFallback(entry, index),
         })),
         weatherData
@@ -692,7 +809,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (forecastData && Array.isArray(forecastData.daily) && forecastData.daily.length) {
       return ensureSevenForecastDays(
-        forecastData.daily.slice(0, 7).map((entry, index) => ({
+        forecastData.daily
+          .filter((entry) => getDayKey(getShiftedDate(entry.dt, weatherData.timezone)) >= currentDayKey)
+          .slice(0, 7)
+          .map((entry, index) => ({
           day: index === 0 ? "Today" : formatWeekday(entry.dt, weatherData.timezone),
           fullDate: formatForecastDate(entry.dt, weatherData.timezone),
           dayKey: getDayKey(getShiftedDate(entry.dt, weatherData.timezone)),
@@ -700,7 +820,7 @@ document.addEventListener("DOMContentLoaded", () => {
           min: entry.temp.min,
           max: entry.temp.max,
           snapshot: buildDailySnapshot(entry, weatherData, index),
-        })),
+          })),
         weatherData
       );
     }
@@ -740,7 +860,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    const normalized = Array.from(groupedByDay.values())
+    const normalized = Array.from(groupedByDay.entries())
+      .filter(([dayKey]) => dayKey >= currentDayKey)
+      .map(([, group]) => group)
       .sort((a, b) => a.date - b.date)
       .slice(0, 7)
       .map((group, index) => ({
@@ -779,6 +901,8 @@ document.addEventListener("DOMContentLoaded", () => {
         weatherData,
         currentSnapshot
       );
+      const representativeHour = getRepresentativeHourlyIndex(hourlyForecast, index, weatherData.timezone || 0);
+      const representativeEntry = hourlyForecast[representativeHour] || hourlyForecast.find(Boolean);
 
       return {
         ...day,
@@ -794,7 +918,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (forecastData && Array.isArray(forecastData.hourly) && forecastData.hourly.length) {
       forecastData.hourly.slice(0, 48).forEach((entry, index) => {
         const dayKey = getDayKey(getShiftedDate(entry.dt, weatherData.timezone || 0));
-        const theme = classifyCondition(entry.weather);
+        const theme = classifyTimedCondition(entry.weather, entry.dt, weatherData.timezone || 0);
         const hourlyEntry = {
           timestamp: entry.dt,
           label: index === 0 ? "Now" : formatUnixTime(entry.dt, weatherData.timezone),
@@ -835,11 +959,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (forecastData && Array.isArray(forecastData.list) && forecastData.list.length) {
       forecastData.list.slice(0, 40).forEach((entry, index) => {
         const dayKey = getDayKey(getShiftedDate(entry.dt, weatherData.timezone || 0));
-        const theme = classifyWeather({
-          weather: entry.weather,
-          timezone: weatherData.timezone,
-          sys: weatherData.sys,
-        });
+        const theme = classifyTimedCondition(entry.weather, entry.dt, weatherData.timezone || 0);
         const hourlyEntry = {
           timestamp: entry.dt,
           label: index === 0 ? "Now" : formatUnixTime(entry.dt, weatherData.timezone),
@@ -889,7 +1009,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const baseEntries = buildFallbackHourlyForecastForDay(dayIndex, weatherData, currentSnapshot);
 
     if (!Array.isArray(entries) || !entries.length) {
-      return baseEntries;
+      return finalizeHourlyLabels(baseEntries, dayIndex, weatherData.timezone || 0);
     }
 
     entries.forEach((entry, index) => {
@@ -904,7 +1024,28 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     });
 
-    return baseEntries;
+    return finalizeHourlyLabels(baseEntries, dayIndex, weatherData.timezone || 0);
+  }
+
+  function finalizeHourlyLabels(hourlyEntries, dayIndex, timezoneOffset) {
+    const currentLocalHour = getCurrentLocalHour(timezoneOffset);
+
+    return hourlyEntries.map((entry, index) => {
+      if (!entry) {
+        return entry;
+      }
+
+      const isNowSlot = dayIndex === 0 && index === currentLocalHour;
+      const timestamp = typeof entry.timestamp === "number"
+        ? entry.timestamp
+        : getStartOfForecastDay(dayIndex, timezoneOffset) + index * 3600;
+
+      return {
+        ...entry,
+        label: isNowSlot ? "Now" : formatUnixTime(timestamp, timezoneOffset),
+        shortLabel: isNowSlot ? "Now" : formatCompactHour(timestamp, timezoneOffset),
+      };
+    });
   }
 
   function buildHourlyChartMarkup(hourlyData, activeIndex) {
@@ -1105,6 +1246,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const precip = Math.max(0, Math.min(100, template.precip + dayIndex * 4 - Math.abs(13 - hourIndex)));
       const dayStart = getStartOfForecastDay(dayIndex, weatherData.timezone || fallbackWeather.timezone);
       const dt = dayStart + hourIndex * 3600;
+      const timedCondition = classifyTimedCondition(
+        [{ main: template.condition, description: template.condition }],
+        dt,
+        weatherData.timezone || fallbackWeather.timezone
+      );
 
       const entry = {
         timestamp: dt,
@@ -1116,7 +1262,7 @@ document.addEventListener("DOMContentLoaded", () => {
           : formatCompactHour(dt, weatherData.timezone || fallbackWeather.timezone),
         temp: Math.round((template.temp + tempOffset) * 10) / 10,
         precip,
-        condition: template.condition,
+        condition: timedCondition,
         isEstimated: true,
       };
 
@@ -1159,7 +1305,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ...template,
         day: index === 0 ? "Today" : getRelativeWeekday(index, weatherData.timezone),
         fullDate: getRelativeForecastDate(index, weatherData.timezone),
-        dayKey: getDayKey(getShiftedDate(Math.floor(Date.now() / 1000) + index * 86400, weatherData.timezone || 0)),
+        dayKey: getRelativeDayKey(index, weatherData.timezone || 0),
         snapshot: buildForecastSnapshotFromFallback(template, index),
       });
     }
@@ -1172,7 +1318,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const hourlyReference = hourlyForecast[representativeHour] || hourlyForecast.find(Boolean);
     const hourlySnapshot = hourlyReference?.snapshot || {};
     const baseDaySnapshot = daySnapshot || {};
-    const resolvedTheme = preferSnapshotText(baseDaySnapshot.theme, hourlySnapshot.theme ?? currentSnapshot?.theme) || "clouds";
+    const resolvedTheme = preferSnapshotText(hourlySnapshot.theme, baseDaySnapshot.theme ?? currentSnapshot?.theme) || "clouds";
     const resolvedUvIndexText = resolveSelectedDayUvIndex(
       hourlySnapshot.uvIndexText,
       baseDaySnapshot.uvIndexText,
@@ -1192,18 +1338,51 @@ document.addEventListener("DOMContentLoaded", () => {
       visibilityText: preferSnapshotText(hourlySnapshot.visibilityText, baseDaySnapshot.visibilityText ?? currentSnapshot?.visibilityText),
       uvIndexText: resolvedUvIndexText,
       theme: resolvedTheme,
-      conditionText: preferSnapshotText(baseDaySnapshot.conditionText, hourlySnapshot.conditionText ?? currentSnapshot?.conditionText),
-      statusText: preferSnapshotText(baseDaySnapshot.statusText, hourlySnapshot.statusText ?? currentSnapshot?.statusText),
+      conditionText: preferSnapshotText(hourlySnapshot.conditionText, baseDaySnapshot.conditionText ?? currentSnapshot?.conditionText),
+      statusText: preferSnapshotText(hourlySnapshot.statusText, baseDaySnapshot.statusText ?? currentSnapshot?.statusText),
       dateText: preferSnapshotText(baseDaySnapshot.dateText, hourlySnapshot.dateText ?? currentSnapshot?.dateText),
       locationLabel: preferSnapshotText(baseDaySnapshot.locationLabel, hourlySnapshot.locationLabel ?? currentLocationLabel),
       liveClock: false,
     };
   }
 
+  function buildSelectedForecastSnapshot(daySnapshot, hourlySnapshot, forecastDay, dayIndex) {
+    const safeDaySnapshot = daySnapshot || {};
+    const safeHourlySnapshot = hourlySnapshot || {};
+    const resolvedTheme = preferSnapshotText(safeHourlySnapshot.theme, safeDaySnapshot.theme) || "clouds";
+    const timezoneOffset = lastWeatherSnapshot?.timezone || 0;
+    const fallbackDateText = formatForecastDateWithCurrentTime(
+      forecastDay?.fullDate || getRelativeForecastDate(dayIndex, timezoneOffset),
+      timezoneOffset
+    );
+
+    return {
+      ...safeDaySnapshot,
+      ...safeHourlySnapshot,
+      temp: preferSnapshotValue(safeHourlySnapshot.temp, safeDaySnapshot.temp),
+      feelsLike: preferSnapshotValue(safeHourlySnapshot.feelsLike, safeDaySnapshot.feelsLike),
+      humidity: preferSnapshotValue(safeHourlySnapshot.humidity, safeDaySnapshot.humidity),
+      windSpeed: preferSnapshotValue(safeHourlySnapshot.windSpeed, safeDaySnapshot.windSpeed),
+      pressure: preferSnapshotValue(safeHourlySnapshot.pressure, safeDaySnapshot.pressure),
+      visibilityText: preferSnapshotText(safeHourlySnapshot.visibilityText, safeDaySnapshot.visibilityText),
+      uvIndexText: preferSnapshotText(safeHourlySnapshot.uvIndexText, safeDaySnapshot.uvIndexText),
+      theme: resolvedTheme,
+      conditionText: preferSnapshotText(safeHourlySnapshot.conditionText, safeDaySnapshot.conditionText),
+      statusText: preferSnapshotText(
+        safeHourlySnapshot.statusText,
+        safeDaySnapshot.statusText || `${forecastDay?.day || "Forecast"} outlook`
+      ),
+      dateText: preferSnapshotText(
+        dayIndex === 0 ? safeHourlySnapshot.dateText : "",
+        safeDaySnapshot.dateText || fallbackDateText
+      ),
+      locationLabel: preferSnapshotText(safeHourlySnapshot.locationLabel, safeDaySnapshot.locationLabel || currentLocationLabel),
+      liveClock: false,
+    };
+  }
+
   function getRepresentativeHourlyIndex(hourlyForecast, dayIndex, timezoneOffset) {
-    const preferredIndex = dayIndex === 0
-      ? getCurrentLocalHour(timezoneOffset)
-      : 12;
+    const preferredIndex = getCurrentLocalHour(timezoneOffset);
 
     if (Array.isArray(hourlyForecast) && hourlyForecast[preferredIndex] && !hourlyForecast[preferredIndex].isEstimated) {
       return preferredIndex;
@@ -1252,6 +1431,53 @@ document.addEventListener("DOMContentLoaded", () => {
       timezone: 0,
       sys: { sunset: Number.MAX_SAFE_INTEGER },
     }).replace("night", "clear");
+  }
+
+  function classifyTimedCondition(weatherEntries, unixSeconds, timezoneOffset) {
+    const main = weatherEntries[0].main.toLowerCase();
+    const description = weatherEntries[0].description.toLowerCase();
+    const isNightHour = isNightHourForTimestamp(unixSeconds, timezoneOffset);
+
+    if (description.includes("thunder")) {
+      return "storm";
+    }
+
+    if (main.includes("snow")) {
+      return "snow";
+    }
+
+    if (main.includes("rain") || description.includes("drizzle")) {
+      return "rain";
+    }
+
+    if (main.includes("mist") || main.includes("fog") || main.includes("haze")) {
+      return "mist";
+    }
+
+    if (main.includes("clear")) {
+      return isNightHour ? "night" : "clear";
+    }
+
+    if (main.includes("cloud")) {
+      if (isNightHour) {
+        return "night";
+      }
+      if (description.includes("few")) {
+        return "few-clouds";
+      }
+      if (description.includes("scattered")) {
+        return "scattered-clouds";
+      }
+      if (description.includes("overcast")) {
+        return "overcast";
+      }
+      if (description.includes("broken")) {
+        return "broken-clouds";
+      }
+      return isNightHour ? "night" : "clouds";
+    }
+
+    return isNightHour ? "night" : "clear";
   }
 
   function formatWeekday(unixSeconds, timezoneOffset) {
@@ -1450,6 +1676,14 @@ document.addEventListener("DOMContentLoaded", () => {
     return new Date((unixSeconds + timezoneOffset) * 1000);
   }
 
+  function getCurrentLocalDayKey(timezoneOffset) {
+    return getRelativeDayKey(0, timezoneOffset);
+  }
+
+  function getRelativeDayKey(offset, timezoneOffset) {
+    return getDayKey(getShiftedDate(Math.floor(Date.now() / 1000) + offset * 86400, timezoneOffset || 0));
+  }
+
   function getStartOfForecastDay(dayOffset, timezoneOffset) {
     const shiftedNow = getShiftedDate(Math.floor(Date.now() / 1000), timezoneOffset);
     shiftedNow.setUTCHours(0, 0, 0, 0);
@@ -1465,6 +1699,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const month = String(date.getUTCMonth() + 1).padStart(2, "0");
     const day = String(date.getUTCDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  }
+
+  function isNightHourForTimestamp(unixSeconds, timezoneOffset) {
+    const localHour = getShiftedDate(unixSeconds, timezoneOffset).getUTCHours();
+    return localHour < 6 || localHour >= 18;
   }
 
   function classifyWeather(weatherData) {
@@ -1493,7 +1732,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (main.includes("cloud")) {
-      return isNight ? "night" : "clouds";
+      if (isNight) {
+        return "night";
+      }
+      if (description.includes("few")) {
+        return "few-clouds";
+      }
+      if (description.includes("scattered")) {
+        return "scattered-clouds";
+      }
+      if (description.includes("overcast")) {
+        return "overcast";
+      }
+      if (description.includes("broken")) {
+        return "broken-clouds";
+      }
+      return "clouds";
     }
 
     return isNight ? "night" : "clear";
@@ -1524,6 +1778,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function hideError() {
     errorMessage.hidden = true;
+  }
+
+  function getWeatherServiceErrorMessage() {
+    if (window.location.protocol === "file:") {
+      return "Run the app with npm run dev and open http://localhost:3000.";
+    }
+
+    return "Weather service is unavailable. Make sure the server is running and the API key is valid.";
   }
 
   function getCurrentPosition() {
@@ -1557,6 +1819,21 @@ document.addEventListener("DOMContentLoaded", () => {
         minute: "2-digit",
       })
       .replace(",", " \u2022");
+  }
+
+  function formatForecastDateWithCurrentTime(dateLabel, timezoneOffset) {
+    const currentLocalTime = formatCurrentLocalTime(timezoneOffset);
+    return `${dateLabel} \u2022 ${currentLocalTime}`;
+  }
+
+  function formatCurrentLocalTime(timezoneOffset) {
+    const utcTime = Date.now() + new Date().getTimezoneOffset() * 60000;
+    const cityTime = new Date(utcTime + timezoneOffset * 1000);
+
+    return cityTime.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   function formatUnixTime(unixSeconds, timezoneOffset) {
