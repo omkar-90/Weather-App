@@ -1,48 +1,37 @@
 # Weather App
 
-Simple weather dashboard with current weather, 7-day forecast, and hourly forecast.
+A simple weather dashboard built with HTML, CSS, and JavaScript.
 
 ## Features
 
-- Search weather by city
-- Use current location
-- View current weather details
-- Check 7-day forecast
-- Check hourly forecast
-- Remembers last searched location
+- Current weather details
+- 7-day forecast
+- Dynamic hourly forecast
+- Search by city
+- Current location support
+- Remembers last selected location
+
+## Project Structure
+
+```text
+Weather-App/
+|-- assets/
+|   |-- css/
+|   |   `-- styles.css
+|   `-- js/
+|       |-- app.js
+|       `-- config.js
+|-- index.html
+`-- README.md
+```
 
 ## Setup
 
-1. Install dependencies
+1. Add your OpenWeatherMap API key in `assets/js/config.js`
+2. Open `index.html` in your browser
 
-```bash
-npm install
-```
-
-2. Create a `.env` file in the project root
-
-```env
-PORT=3000
-OPENWEATHER_API_KEY=your_openweathermap_api_key
-```
-
-3. Start the app
-
-```bash
-npm run dev
-```
-
-4. Open in browser
-
-```text
-http://localhost:3000
-```
-
-## Tech
+## Tech Used
 
 - HTML
 - CSS
 - JavaScript
-- Node.js
-- Express
-- OpenWeather API
