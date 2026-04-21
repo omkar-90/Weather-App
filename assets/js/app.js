@@ -1,5 +1,6 @@
 const WEATHER_API_KEY = window.WEATHER_APP_CONFIG?.WEATHER_API_KEY || "";
 const WEATHER_API_URL = "https://api.openweathermap.org/data/2.5";
+const LAST_LOCATION_STORAGE_KEY = "weather-last-location";
 
 const fallbackWeather = {
   name: "Bengaluru",
@@ -25,6 +26,33 @@ const fallbackForecast = [
   { day: "Sat", condition: "storm", min: 23, max: 28 },
   { day: "Sun", condition: "clear", min: 24, max: 32 },
   { day: "Mon", condition: "clouds", min: 25, max: 31 },
+];
+
+const fallbackHourlyForecast = [
+  { label: "Now", shortLabel: "Now", temp: 28, precip: 10, condition: "clouds" },
+  { label: "2 PM", shortLabel: "2 PM", temp: 29, precip: 8, condition: "clouds" },
+  { label: "3 PM", shortLabel: "3 PM", temp: 30, precip: 6, condition: "clear" },
+  { label: "4 PM", shortLabel: "4 PM", temp: 30, precip: 4, condition: "clear" },
+  { label: "5 PM", shortLabel: "5 PM", temp: 29, precip: 12, condition: "clouds" },
+  { label: "6 PM", shortLabel: "6 PM", temp: 27, precip: 18, condition: "rain" },
+  { label: "7 PM", shortLabel: "7 PM", temp: 26, precip: 24, condition: "rain" },
+  { label: "8 PM", shortLabel: "8 PM", temp: 25, precip: 20, condition: "rain" },
+  { label: "9 PM", shortLabel: "9 PM", temp: 24, precip: 14, condition: "clouds" },
+  { label: "10 PM", shortLabel: "10 PM", temp: 23, precip: 8, condition: "night" },
+  { label: "11 PM", shortLabel: "11 PM", temp: 23, precip: 7, condition: "night" },
+  { label: "12 AM", shortLabel: "12 AM", temp: 22, precip: 6, condition: "night" },
+  { label: "1 AM", shortLabel: "1 AM", temp: 22, precip: 6, condition: "night" },
+  { label: "2 AM", shortLabel: "2 AM", temp: 21, precip: 5, condition: "night" },
+  { label: "3 AM", shortLabel: "3 AM", temp: 21, precip: 5, condition: "night" },
+  { label: "4 AM", shortLabel: "4 AM", temp: 20, precip: 6, condition: "mist" },
+  { label: "5 AM", shortLabel: "5 AM", temp: 20, precip: 8, condition: "mist" },
+  { label: "6 AM", shortLabel: "6 AM", temp: 21, precip: 10, condition: "clouds" },
+  { label: "7 AM", shortLabel: "7 AM", temp: 22, precip: 12, condition: "clouds" },
+  { label: "8 AM", shortLabel: "8 AM", temp: 24, precip: 10, condition: "clouds" },
+  { label: "9 AM", shortLabel: "9 AM", temp: 25, precip: 8, condition: "clear" },
+  { label: "10 AM", shortLabel: "10 AM", temp: 26, precip: 6, condition: "clear" },
+  { label: "11 AM", shortLabel: "11 AM", temp: 27, precip: 5, condition: "clear" },
+  { label: "12 PM", shortLabel: "12 PM", temp: 28, precip: 4, condition: "clear" },
 ];
 
 const weatherThemes = {
@@ -283,6 +311,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const errorMessage = document.getElementById("error-message");
   const errorText = document.getElementById("error-text");
   const forecastCards = document.getElementById("forecast-cards");
+  const hourlyChart = document.getElementById("hourly-chart");
+  const hourlyCards = document.getElementById("hourly-cards");
+  const hourlyRailShell = hourlyCards.parentElement;
 
   const temperatureEl = document.getElementById("temperature");
   const conditionEl = document.getElementById("condition");
@@ -302,13 +333,16 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentClockInterval = null;
   let lastWeatherSnapshot = fallbackWeather;
   let activeForecastDays = [];
+  let activeHourlyForecast = [];
   let currentLocationLabel = `${fallbackWeather.name}, ${fallbackWeather.sys.country}`;
   let currentHeroBaseline = null;
+  let isSyncingHourlyScroll = false;
 
   initializeTheme();
   bindEvents();
+  initializeHourlyScrollSync();
   hydrateWithFallback();
-  loadWeatherForCurrentLocation();
+  initializeWeatherApp();
 
   function bindEvents() {
     searchForm.addEventListener("submit", async (event) => {
@@ -343,8 +377,55 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.toggle("theme-dark", !isLight);
   }
 
+  function initializeHourlyScrollSync() {
+    if (!hourlyChart || !hourlyRailShell) {
+      return;
+    }
+
+    hourlyChart.addEventListener("scroll", () => {
+      syncHourlyScroll(hourlyChart, hourlyRailShell);
+    });
+
+    hourlyRailShell.addEventListener("scroll", () => {
+      syncHourlyScroll(hourlyRailShell, hourlyChart);
+    });
+  }
+
+  function syncHourlyScroll(source, target) {
+    if (isSyncingHourlyScroll) {
+      return;
+    }
+
+    const sourceScrollableWidth = source.scrollWidth - source.clientWidth;
+    const targetScrollableWidth = target.scrollWidth - target.clientWidth;
+
+    if (sourceScrollableWidth <= 0 || targetScrollableWidth <= 0) {
+      return;
+    }
+
+    const progress = source.scrollLeft / sourceScrollableWidth;
+
+    isSyncingHourlyScroll = true;
+    target.scrollLeft = progress * targetScrollableWidth;
+    requestAnimationFrame(() => {
+      isSyncingHourlyScroll = false;
+    });
+  }
+
   function hydrateWithFallback() {
     renderWeather(fallbackWeather, fallbackForecast, true);
+  }
+
+  async function initializeWeatherApp() {
+    const savedLocation = getSavedLocation();
+
+    if (savedLocation) {
+      cityInput.value = savedLocation.label || "";
+      await loadWeather(savedLocation.query, { saveLocation: false });
+      return;
+    }
+
+    await loadWeatherForCurrentLocation();
   }
 
   async function loadWeatherForCurrentLocation(showErrors = false) {
@@ -353,6 +434,9 @@ document.addEventListener("DOMContentLoaded", () => {
       await loadWeather({
         lat: position.coords.latitude,
         lon: position.coords.longitude,
+      }, {
+        saveLocation: true,
+        locationLabel: "Current location",
       });
     } catch (error) {
       if (showErrors) {
@@ -361,7 +445,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function loadWeather({ city, lat, lon }) {
+  async function loadWeather({ city, lat, lon }, options = {}) {
+    const { saveLocation = true, locationLabel = "" } = options;
+
     try {
       let weatherData;
       let forecastData;
@@ -379,6 +465,14 @@ document.addEventListener("DOMContentLoaded", () => {
           forecastData = fallbackForecast;
           warningMessage = "Live 7-day forecast is unavailable. Showing preview forecast.";
         }
+      }
+
+      if (saveLocation) {
+        saveLastLocation(weatherData, { city, lat, lon, label: locationLabel });
+      }
+
+      if (city) {
+        cityInput.value = weatherData.name;
       }
 
       renderWeather(weatherData, forecastData);
@@ -402,6 +496,45 @@ document.addEventListener("DOMContentLoaded", () => {
     return WEATHER_API_KEY && WEATHER_API_KEY !== "YOUR_OPENWEATHERMAP_API_KEY";
   }
 
+  function getSavedLocation() {
+    const rawLocation = localStorage.getItem(LAST_LOCATION_STORAGE_KEY);
+
+    if (!rawLocation) {
+      return null;
+    }
+
+    try {
+      const parsedLocation = JSON.parse(rawLocation);
+      if (!parsedLocation || !parsedLocation.query) {
+        return null;
+      }
+      return parsedLocation;
+    } catch (error) {
+      localStorage.removeItem(LAST_LOCATION_STORAGE_KEY);
+      return null;
+    }
+  }
+
+  function saveLastLocation(weatherData, source) {
+    const hasCoordinates = typeof weatherData?.coord?.lat === "number" && typeof weatherData?.coord?.lon === "number";
+    const resolvedQuery = source.city
+      ? { city: weatherData.name }
+      : hasCoordinates
+        ? { lat: weatherData.coord.lat, lon: weatherData.coord.lon }
+        : null;
+
+    if (!resolvedQuery) {
+      return;
+    }
+
+    const payload = {
+      label: source.label || weatherData.name,
+      query: resolvedQuery,
+    };
+
+    localStorage.setItem(LAST_LOCATION_STORAGE_KEY, JSON.stringify(payload));
+  }
+
   async function fetchWeather({ city, lat, lon }) {
     const search = city
       ? `weather?q=${encodeURIComponent(city)}&units=metric&appid=${WEATHER_API_KEY}`
@@ -417,8 +550,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function fetchForecast(lat, lon) {
     const oneCallEndpoints = [
-      `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,alerts&units=metric&appid=${WEATHER_API_KEY}`,
-      `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,alerts&units=metric&appid=${WEATHER_API_KEY}`,
+      `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,alerts&units=metric&appid=${WEATHER_API_KEY}`,
+      `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=minutely,alerts&units=metric&appid=${WEATHER_API_KEY}`,
     ];
 
     for (const endpoint of oneCallEndpoints) {
@@ -450,8 +583,7 @@ document.addEventListener("DOMContentLoaded", () => {
     currentHeroBaseline = currentSnapshot;
 
     activeForecastDays = buildInteractiveForecastDays(forecastData, weatherData, currentSnapshot);
-    renderHeroSnapshot(currentSnapshot);
-    renderForecast(activeForecastDays, 0);
+    selectForecastDay(0);
   }
 
   function renderDateTime(weatherData) {
@@ -488,11 +620,71 @@ document.addEventListener("DOMContentLoaded", () => {
         <p class="forecast-range"><strong>${Math.round(forecast.max)}\u00B0</strong> / ${Math.round(forecast.min)}\u00B0</p>
       `;
       card.addEventListener("click", () => {
-        renderHeroSnapshot(mergeHeroSnapshot(forecast.snapshot || buildForecastSnapshotFromFallback(forecast, index)));
-        renderForecast(activeForecastDays, index);
+        selectForecastDay(index);
       });
       forecastCards.appendChild(card);
     });
+  }
+
+  function selectForecastDay(index) {
+    const safeIndex = Math.max(0, Math.min(index, activeForecastDays.length - 1));
+    const selectedForecast = activeForecastDays[safeIndex];
+
+    if (!selectedForecast) {
+      return;
+    }
+
+    activeHourlyForecast = selectedForecast.hourlyForecast
+      || buildFallbackHourlyForecastForDay(safeIndex, lastWeatherSnapshot, currentHeroBaseline);
+
+    renderHeroSnapshot(
+      mergeHeroSnapshot(selectedForecast.snapshot || buildForecastSnapshotFromFallback(selectedForecast, safeIndex))
+    );
+    renderForecast(activeForecastDays, safeIndex);
+    renderHourlyForecast(activeHourlyForecast, 0, true);
+  }
+
+  function renderHourlyForecast(hourlyData, activeIndex = 0, resetScroll = false) {
+    hourlyCards.innerHTML = "";
+    hourlyChart.innerHTML = "";
+
+    const safeHourly = Array.isArray(hourlyData) && hourlyData.length
+      ? hourlyData.slice(0, 24)
+      : buildFallbackHourlyForecastForDay(0, fallbackWeather, currentHeroBaseline || buildCurrentSnapshot(fallbackWeather, true));
+
+    const boundedIndex = Math.max(0, Math.min(activeIndex, safeHourly.length - 1));
+
+    safeHourly.forEach((entry, index) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "hourly-card glass-tile";
+      if (index === boundedIndex) {
+        card.classList.add("is-active");
+      }
+      card.innerHTML = `
+        <p class="hourly-time">${entry.shortLabel}</p>
+        <div class="hourly-icon">${conditionIconMap[entry.condition] || conditionIconMap.clouds}</div>
+        <p class="hourly-precip">${Math.round(entry.precip)}%</p>
+        <p class="hourly-temp">${Math.round(entry.temp)}\u00B0</p>
+      `;
+      card.addEventListener("click", () => {
+        renderHeroSnapshot(mergeHeroSnapshot(entry.snapshot));
+        renderHourlyForecast(activeHourlyForecast, index, false);
+      });
+      hourlyCards.appendChild(card);
+    });
+
+    const chartMarkup = buildHourlyChartMarkup(safeHourly, boundedIndex);
+    hourlyChart.innerHTML = chartMarkup;
+
+    if (resetScroll) {
+      requestAnimationFrame(() => {
+        hourlyChart.scrollLeft = 0;
+        if (hourlyRailShell) {
+          hourlyRailShell.scrollLeft = 0;
+        }
+      });
+    }
   }
 
   function buildForecastModel(forecastData, weatherData) {
@@ -502,6 +694,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ...entry,
           day: index === 0 ? "Today" : entry.day,
           fullDate: entry.fullDate || getRelativeForecastDate(index, weatherData.timezone),
+          dayKey: entry.dayKey || getDayKey(getShiftedDate(Math.floor(Date.now() / 1000) + index * 86400, weatherData.timezone || 0)),
           snapshot: entry.snapshot || buildForecastSnapshotFromFallback(entry, index),
         })),
         weatherData
@@ -513,6 +706,7 @@ document.addEventListener("DOMContentLoaded", () => {
         forecastData.daily.slice(0, 7).map((entry, index) => ({
           day: index === 0 ? "Today" : formatWeekday(entry.dt, weatherData.timezone),
           fullDate: formatForecastDate(entry.dt, weatherData.timezone),
+          dayKey: getDayKey(getShiftedDate(entry.dt, weatherData.timezone)),
           condition: classifyCondition(entry.weather),
           min: entry.temp.min,
           max: entry.temp.max,
@@ -568,6 +762,7 @@ document.addEventListener("DOMContentLoaded", () => {
           day: "numeric",
           timeZone: "UTC",
         }),
+        dayKey: getDayKey(group.date),
         condition: pickRepresentativeCondition(group.entries),
         min: Math.min(...group.temps),
         max: Math.max(...group.temps),
@@ -579,13 +774,190 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildInteractiveForecastDays(forecastData, weatherData, currentSnapshot) {
     const days = buildForecastModel(forecastData, weatherData);
+    const hourlyBuckets = buildHourlyForecastBuckets(forecastData, weatherData, currentSnapshot);
+
     if (days.length) {
       days[0] = {
         ...days[0],
         snapshot: currentSnapshot,
       };
     }
-    return days;
+
+    return days.map((day, index) => ({
+      ...day,
+      hourlyForecast: normalizeHourlyForecastForDay(
+        hourlyBuckets.get(day.dayKey),
+        index,
+        weatherData,
+        currentSnapshot
+      ),
+    }));
+  }
+
+  function buildHourlyForecastBuckets(forecastData, weatherData, currentSnapshot) {
+    const buckets = new Map();
+
+    if (forecastData && Array.isArray(forecastData.hourly) && forecastData.hourly.length) {
+      forecastData.hourly.slice(0, 48).forEach((entry, index) => {
+        const dayKey = getDayKey(getShiftedDate(entry.dt, weatherData.timezone || 0));
+        const theme = classifyCondition(entry.weather);
+        const hourlyEntry = {
+          timestamp: entry.dt,
+          label: index === 0 ? "Now" : formatUnixTime(entry.dt, weatherData.timezone),
+          shortLabel: index === 0 ? "Now" : formatCompactHour(entry.dt, weatherData.timezone),
+          temp: entry.temp,
+          precip: Math.round((entry.pop || 0) * 100),
+          condition: theme,
+          snapshot: {
+            temp: entry.temp,
+            conditionText: toTitleCase(entry.weather[0].description),
+            feelsLike: entry.feels_like ?? entry.temp,
+            humidity: entry.humidity ?? null,
+            windSpeed: Math.round((entry.wind_speed || 0) * 3.6),
+            pressure: entry.pressure ?? null,
+            visibilityText: typeof entry.visibility === "number" ? `${Math.round(entry.visibility / 1000)} km` : null,
+            uvIndexText: typeof entry.uvi === "number" ? String(Math.round(entry.uvi)) : null,
+            statusText: index === 0 ? weatherThemes[theme].status : `${formatUnixTime(entry.dt, weatherData.timezone)} outlook`,
+            dateText: formatHourlyDate(entry.dt, weatherData.timezone),
+            locationLabel: currentLocationLabel,
+            theme,
+            liveClock: false,
+          },
+        };
+
+        if (!buckets.has(dayKey)) {
+          buckets.set(dayKey, []);
+        }
+
+        if (buckets.get(dayKey).length < 24) {
+          buckets.get(dayKey).push(hourlyEntry);
+        }
+      });
+
+      return buckets;
+    }
+
+    if (forecastData && Array.isArray(forecastData.list) && forecastData.list.length) {
+      forecastData.list.slice(0, 40).forEach((entry, index) => {
+        const dayKey = getDayKey(getShiftedDate(entry.dt, weatherData.timezone || 0));
+        const theme = classifyWeather({
+          weather: entry.weather,
+          timezone: weatherData.timezone,
+          sys: weatherData.sys,
+        });
+        const hourlyEntry = {
+          timestamp: entry.dt,
+          label: index === 0 ? "Now" : formatUnixTime(entry.dt, weatherData.timezone),
+          shortLabel: index === 0 ? "Now" : formatCompactHour(entry.dt, weatherData.timezone),
+          temp: entry.main.temp,
+          precip: Math.round((entry.pop || 0) * 100),
+          condition: theme,
+          snapshot: {
+            temp: entry.main.temp,
+            conditionText: toTitleCase(entry.weather[0].description),
+            feelsLike: entry.main.feels_like ?? entry.main.temp,
+            humidity: entry.main.humidity ?? null,
+            windSpeed: Math.round((entry.wind.speed || 0) * 3.6),
+            pressure: entry.main.pressure ?? null,
+            visibilityText: typeof entry.visibility === "number" ? `${Math.round(entry.visibility / 1000)} km` : null,
+            uvIndexText: null,
+            statusText: index === 0 ? weatherThemes[theme].status : `${formatUnixTime(entry.dt, weatherData.timezone)} outlook`,
+            dateText: formatHourlyDate(entry.dt, weatherData.timezone),
+            locationLabel: currentLocationLabel,
+            theme,
+            liveClock: false,
+          },
+        };
+
+        if (!buckets.has(dayKey)) {
+          buckets.set(dayKey, []);
+        }
+
+        if (buckets.get(dayKey).length < 24) {
+          buckets.get(dayKey).push(hourlyEntry);
+        }
+      });
+
+      return buckets;
+    }
+
+    const fallbackDays = ensureSevenForecastDays([], weatherData);
+    fallbackDays.forEach((day, index) => {
+      buckets.set(day.dayKey, buildFallbackHourlyForecastForDay(index, weatherData, currentSnapshot));
+    });
+
+    return buckets;
+  }
+
+  function normalizeHourlyForecastForDay(entries, dayIndex, weatherData, currentSnapshot) {
+    const baseEntries = buildFallbackHourlyForecastForDay(dayIndex, weatherData, currentSnapshot);
+
+    if (!Array.isArray(entries) || !entries.length) {
+      return baseEntries;
+    }
+
+    entries.forEach((entry, index) => {
+      const hourIndex = typeof entry.timestamp === "number"
+        ? getShiftedDate(entry.timestamp, weatherData.timezone || 0).getUTCHours()
+        : Math.min(index, 23);
+
+      const boundedHourIndex = Math.max(0, Math.min(hourIndex, 23));
+      baseEntries[boundedHourIndex] = {
+        ...baseEntries[boundedHourIndex],
+        ...entry,
+      };
+    });
+
+    return baseEntries;
+  }
+
+  function buildHourlyChartMarkup(hourlyData, activeIndex) {
+    const chartHeight = 210;
+    const chartWidth = Math.max(760, hourlyData.length * 96);
+    const topPadding = 28;
+    const bottomPadding = 44;
+    const leftPadding = 32;
+    const usableHeight = chartHeight - topPadding - bottomPadding;
+    const stepX = hourlyData.length > 1 ? (chartWidth - leftPadding * 2) / (hourlyData.length - 1) : 0;
+    const temps = hourlyData.map((entry) => entry.temp);
+    const minTemp = Math.min(...temps);
+    const maxTemp = Math.max(...temps);
+    const range = Math.max(1, maxTemp - minTemp);
+
+    const points = hourlyData.map((entry, index) => {
+      const x = leftPadding + stepX * index;
+      const normalized = (entry.temp - minTemp) / range;
+      const y = topPadding + (usableHeight - normalized * usableHeight);
+      return { x, y, entry };
+    });
+
+    const pathData = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+    const activePoint = points[activeIndex] || points[0];
+
+    return `
+      <div class="hourly-chart-canvas" style="width:${chartWidth}px">
+        <svg viewBox="0 0 ${chartWidth} ${chartHeight}" class="hourly-chart-svg" role="img" aria-label="Hourly forecast temperature trend">
+          <defs>
+            <linearGradient id="hourly-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.2)"></stop>
+              <stop offset="100%" stop-color="rgba(255,255,255,0.02)"></stop>
+            </linearGradient>
+          </defs>
+          <path d="${pathData} L ${points[points.length - 1].x} ${chartHeight - bottomPadding + 10} L ${points[0].x} ${chartHeight - bottomPadding + 10} Z" class="hourly-area"></path>
+          <path d="${pathData}" class="hourly-line"></path>
+          ${points.map((point, index) => `
+            <g class="hourly-point ${index === activeIndex ? "is-active" : ""}">
+              <circle cx="${point.x}" cy="${point.y}" r="${index === activeIndex ? 6 : 4}"></circle>
+            </g>
+          `).join("")}
+        </svg>
+        <div class="hourly-chart-tooltip" style="left:${Math.max(24, Math.min(activePoint.x - 78, chartWidth - 180))}px; top:${Math.max(22, activePoint.y + 16)}px;">
+          <strong>${activePoint.entry.label}</strong>
+          <span><i class="hourly-key is-temp"></i>Temp: ${Math.round(activePoint.entry.temp)}\u00B0C</span>
+          <span><i class="hourly-key is-precip"></i>Precip: ${Math.round(activePoint.entry.precip)}%</span>
+        </div>
+      </div>
+    `;
   }
 
   function renderHeroSnapshot(snapshot) {
@@ -726,6 +1098,55 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  function buildFallbackHourlyForecastForDay(dayIndex, weatherData, currentSnapshot) {
+    return Array.from({ length: 24 }, (_, hourIndex) => {
+      const template = fallbackHourlyForecast[(dayIndex * 3 + hourIndex) % fallbackHourlyForecast.length];
+      const tempOffset = dayIndex * 0.6 - Math.abs(12 - hourIndex) * 0.12;
+      const precip = Math.max(0, Math.min(100, template.precip + dayIndex * 4 - Math.abs(13 - hourIndex)));
+      const dayStart = getStartOfForecastDay(dayIndex, weatherData.timezone || fallbackWeather.timezone);
+      const dt = dayStart + hourIndex * 3600;
+
+      const entry = {
+        timestamp: dt,
+        label: hourIndex === getCurrentLocalHour(weatherData.timezone || fallbackWeather.timezone) && dayIndex === 0
+          ? "Now"
+          : formatUnixTime(dt, weatherData.timezone || fallbackWeather.timezone),
+        shortLabel: hourIndex === getCurrentLocalHour(weatherData.timezone || fallbackWeather.timezone) && dayIndex === 0
+          ? "Now"
+          : formatCompactHour(dt, weatherData.timezone || fallbackWeather.timezone),
+        temp: Math.round((template.temp + tempOffset) * 10) / 10,
+        precip,
+        condition: template.condition,
+      };
+
+      return {
+        ...entry,
+        snapshot: buildHourlySnapshotFromFallback(entry, dt, weatherData, currentSnapshot),
+      };
+    });
+  }
+
+  function buildHourlySnapshotFromFallback(entry, timestamp, weatherData, currentSnapshot) {
+    const snapshot = {
+      ...currentSnapshot,
+      temp: entry.temp,
+      conditionText: toTitleCase(entry.condition),
+      feelsLike: entry.temp,
+      humidity: currentSnapshot?.humidity ?? fallbackWeather.main.humidity,
+      windSpeed: currentSnapshot?.windSpeed ?? Math.round((fallbackWeather.wind.speed || 0) * 3.6),
+      pressure: currentSnapshot?.pressure ?? fallbackWeather.main.pressure,
+      visibilityText: null,
+      uvIndexText: null,
+      statusText: entry.label === "Now" ? "Preview mode" : `${entry.label} outlook`,
+      dateText: formatHourlyDate(timestamp, weatherData.timezone || fallbackWeather.timezone),
+      locationLabel: currentLocationLabel,
+      theme: entry.condition,
+      liveClock: false,
+    };
+
+    return snapshot;
+  }
+
   function ensureSevenForecastDays(days, weatherData) {
     const normalized = Array.isArray(days) ? [...days] : [];
 
@@ -736,6 +1157,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ...template,
         day: index === 0 ? "Today" : getRelativeWeekday(index, weatherData.timezone),
         fullDate: getRelativeForecastDate(index, weatherData.timezone),
+        dayKey: getDayKey(getShiftedDate(Math.floor(Date.now() / 1000) + index * 86400, weatherData.timezone || 0)),
         snapshot: buildForecastSnapshotFromFallback(template, index),
       });
     }
@@ -784,6 +1206,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function formatHourlyDate(unixSeconds, timezoneOffset) {
+    return getShiftedDate(unixSeconds, timezoneOffset).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+  }
+
   function formatMetricValue(value, suffix) {
     return value === "--" || value === null || value === undefined ? "--" : `${Math.round(value)}${suffix}`;
   }
@@ -814,6 +1247,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getShiftedDate(unixSeconds, timezoneOffset) {
     return new Date((unixSeconds + timezoneOffset) * 1000);
+  }
+
+  function getStartOfForecastDay(dayOffset, timezoneOffset) {
+    const shiftedNow = getShiftedDate(Math.floor(Date.now() / 1000), timezoneOffset);
+    shiftedNow.setUTCHours(0, 0, 0, 0);
+    return Math.floor(shiftedNow.getTime() / 1000) - timezoneOffset + dayOffset * 86400;
+  }
+
+  function getCurrentLocalHour(timezoneOffset) {
+    return getShiftedDate(Math.floor(Date.now() / 1000), timezoneOffset).getUTCHours();
   }
 
   function getDayKey(date) {
@@ -920,6 +1363,14 @@ document.addEventListener("DOMContentLoaded", () => {
     return utcDate.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "UTC",
+    });
+  }
+
+  function formatCompactHour(unixSeconds, timezoneOffset) {
+    const utcDate = new Date((unixSeconds + timezoneOffset) * 1000);
+    return utcDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
       timeZone: "UTC",
     });
   }

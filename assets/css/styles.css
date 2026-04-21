@@ -238,6 +238,9 @@ input {
 .weather-app {
   position: relative;
   width: min(100%, 1140px);
+  max-width: 1140px;
+  min-width: 0;
+  margin-inline: auto;
 }
 
 .glass-panel,
@@ -254,6 +257,7 @@ input {
   border-radius: var(--radius-xl);
   padding: 22px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .weather-card::after {
@@ -743,6 +747,188 @@ h2 {
   position: relative;
   z-index: 1;
   margin-top: 24px;
+  min-width: 0;
+}
+
+.hourly-chart-shell {
+  margin-bottom: 14px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.hourly-rail-shell {
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 6px;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
+
+.hourly-chart-scroll {
+  overflow-x: auto;
+  padding-bottom: 6px;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
+
+.hourly-chart-scroll {
+  padding: 18px;
+}
+
+.hourly-chart-scroll::-webkit-scrollbar,
+.hourly-rail-shell::-webkit-scrollbar {
+  height: 8px;
+}
+
+.hourly-chart-scroll::-webkit-scrollbar-thumb,
+.hourly-rail-shell::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 999px;
+}
+
+.hourly-chart-canvas {
+  position: relative;
+  min-height: 220px;
+  min-width: 100%;
+}
+
+.hourly-chart-svg {
+  display: block;
+  width: 100%;
+  height: 220px;
+}
+
+.hourly-area {
+  fill: url(#hourly-fill);
+}
+
+.hourly-line {
+  fill: none;
+  stroke: #ff8a3d;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hourly-point circle {
+  fill: rgba(255, 138, 61, 0.18);
+  stroke: #ff8a3d;
+  stroke-width: 2;
+}
+
+.hourly-point.is-active circle {
+  fill: rgba(255, 255, 255, 0.9);
+}
+
+.hourly-chart-tooltip {
+  position: absolute;
+  display: grid;
+  gap: 6px;
+  min-width: 146px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(13, 19, 34, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+}
+
+.hourly-chart-tooltip strong,
+.hourly-chart-tooltip span {
+  color: #f7f8ff;
+}
+
+.hourly-chart-tooltip span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hourly-key {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.hourly-key.is-temp {
+  background: #ff8a3d;
+}
+
+.hourly-key.is-precip {
+  background: #8ee1ff;
+}
+
+.hourly-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 96px;
+  gap: 8px;
+  padding-inline: 2px 12px;
+  width: max-content;
+  min-width: 100%;
+  scroll-snap-type: x proximity;
+}
+
+.hourly-card {
+  min-height: 172px;
+  padding: 16px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
+}
+
+.hourly-card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.hourly-card.is-active {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.42);
+}
+
+.hourly-time,
+.hourly-precip,
+.hourly-temp {
+  margin: 0;
+}
+
+.hourly-time {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hourly-card .hourly-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.hourly-card .hourly-icon .icon-svg {
+  stroke-width: 7;
+}
+
+.hourly-precip {
+  color: var(--accent-strong);
+  font-size: 0.95rem;
+}
+
+.hourly-temp {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
 }
 
 .section-heading {
@@ -793,6 +979,59 @@ h2 {
 .forecast-range {
   margin: 0;
   color: var(--text-secondary);
+}
+
+.app-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  gap: 12px;
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.app-footer-info {
+  justify-self: start;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.app-signature {
+  position: relative;
+  justify-self: center;
+  font-family: var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(245, 247, 255, 0.88);
+  text-shadow: 0 0 18px rgba(142, 197, 255, 0.22);
+}
+
+.app-footer-spacer {
+  justify-self: end;
+  width: 1px;
+  height: 1px;
+}
+
+.app-signature::after {
+  content: "";
+  position: absolute;
+  left: -12%;
+  top: 50%;
+  width: 36%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(142, 197, 255, 0.75), transparent);
+  transform: translateY(-50%);
+  animation: signatureGlow 2.6s ease-in-out infinite;
 }
 
 .is-dimmed {
@@ -922,6 +1161,15 @@ body.theme-light.weather-snow {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .hourly-chart-scroll {
+    padding: 14px;
+  }
+
+  .app-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1011,5 +1259,10 @@ body.theme-light.weather-snow {
 @keyframes twinkle {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
+}
+
+@keyframes signatureGlow {
+  0%, 100% { opacity: 0.35; transform: translateY(-50%) scaleX(0.9); }
+  50% { opacity: 1; transform: translateY(-50%) scaleX(1.15); }
 }
 
