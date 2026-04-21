@@ -1,5 +1,4 @@
-const WEATHER_API_KEY = window.WEATHER_APP_CONFIG?.WEATHER_API_KEY || "";
-const WEATHER_API_URL = "https://api.openweathermap.org/data/2.5";
+const WEATHER_API_BASE = "/api";
 const LAST_LOCATION_STORAGE_KEY = "weather-last-location";
 
 const fallbackWeather = {
@@ -453,18 +452,12 @@ document.addEventListener("DOMContentLoaded", () => {
       let forecastData;
       let warningMessage = "";
 
-      if (!canUseLiveApi()) {
-        await simulateLoading();
-        weatherData = buildDemoWeather(city);
+      weatherData = await fetchWeather({ city, lat, lon });
+      try {
+        forecastData = await fetchForecast(weatherData.coord.lat, weatherData.coord.lon);
+      } catch (error) {
         forecastData = fallbackForecast;
-      } else {
-        weatherData = await fetchWeather({ city, lat, lon });
-        try {
-          forecastData = await fetchForecast(weatherData.coord.lat, weatherData.coord.lon);
-        } catch (error) {
-          forecastData = fallbackForecast;
-          warningMessage = "Live 7-day forecast is unavailable. Showing preview forecast.";
-        }
+        warningMessage = "Live 7-day forecast is unavailable. Showing preview forecast.";
       }
 
       if (saveLocation) {
@@ -490,10 +483,6 @@ document.addEventListener("DOMContentLoaded", () => {
       showError(message);
       renderWeather(fallbackWeatherData, fallbackForecast, true);
     }
-  }
-
-  function canUseLiveApi() {
-    return WEATHER_API_KEY && WEATHER_API_KEY !== "YOUR_OPENWEATHERMAP_API_KEY";
   }
 
   function getSavedLocation() {
@@ -536,44 +525,38 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function fetchWeather({ city, lat, lon }) {
-    const search = city
-      ? `weather?q=${encodeURIComponent(city)}&units=metric&appid=${WEATHER_API_KEY}`
-      : `weather?lat=${lat}&lon=${lon}&units=metric&appid=${WEATHER_API_KEY}`;
+    const query = city
+      ? `city=${encodeURIComponent(city)}`
+      : `lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
 
-    const response = await fetch(`${WEATHER_API_URL}/${search}`);
+    const response = await fetch(`${WEATHER_API_BASE}/weather?${query}`);
     if (!response.ok) {
-      throw new Error(response.status === 404 ? "Location not found." : "Weather service is unavailable.");
+      const errorPayload = await safeParseJson(response);
+      throw new Error(errorPayload?.message || (response.status === 404 ? "Location not found." : "Weather service is unavailable."));
     }
 
     return response.json();
   }
 
   async function fetchForecast(lat, lon) {
-    const oneCallEndpoints = [
-      `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,alerts&units=metric&appid=${WEATHER_API_KEY}`,
-      `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=minutely,alerts&units=metric&appid=${WEATHER_API_KEY}`,
-    ];
-
-    for (const endpoint of oneCallEndpoints) {
-      try {
-        const response = await fetch(endpoint);
-        if (response.ok) {
-          return response.json();
-        }
-      } catch (error) {
-        console.warn("Daily forecast endpoint failed:", error);
-      }
-    }
-
     const response = await fetch(
-      `${WEATHER_API_URL}/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${WEATHER_API_KEY}`
+      `${WEATHER_API_BASE}/forecast?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
     );
 
     if (!response.ok) {
-      throw new Error("Forecast service is unavailable.");
+      const errorPayload = await safeParseJson(response);
+      throw new Error(errorPayload?.message || "Forecast service is unavailable.");
     }
 
     return response.json();
+  }
+
+  async function safeParseJson(response) {
+    try {
+      return await response.json();
+    } catch (error) {
+      return null;
+    }
   }
 
   function renderWeather(weatherData, forecastData, isFallback = false) {
@@ -637,11 +620,17 @@ document.addEventListener("DOMContentLoaded", () => {
     activeHourlyForecast = selectedForecast.hourlyForecast
       || buildFallbackHourlyForecastForDay(safeIndex, lastWeatherSnapshot, currentHeroBaseline);
 
-    renderHeroSnapshot(
-      mergeHeroSnapshot(selectedForecast.snapshot || buildForecastSnapshotFromFallback(selectedForecast, safeIndex))
-    );
+    const initialHourlyIndex = getRepresentativeHourlyIndex(activeHourlyForecast, safeIndex, lastWeatherSnapshot?.timezone || 0);
+    const initialHourlySnapshot = activeHourlyForecast[initialHourlyIndex]?.snapshot || {};
+    const selectedSnapshot = mergeHeroSnapshot({
+      ...(selectedForecast.snapshot || buildForecastSnapshotFromFallback(selectedForecast, safeIndex)),
+      ...initialHourlySnapshot,
+    });
+
+    currentHeroBaseline = selectedSnapshot;
+    renderHeroSnapshot(selectedSnapshot);
     renderForecast(activeForecastDays, safeIndex);
-    renderHourlyForecast(activeHourlyForecast, 0, true);
+    renderHourlyForecast(activeHourlyForecast, initialHourlyIndex, true);
   }
 
   function renderHourlyForecast(hourlyData, activeIndex = 0, resetScroll = false) {
@@ -668,7 +657,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <p class="hourly-temp">${Math.round(entry.temp)}\u00B0</p>
       `;
       card.addEventListener("click", () => {
-        renderHeroSnapshot(mergeHeroSnapshot(entry.snapshot));
+        renderHeroSnapshot(mergeHeroSnapshot(entry.snapshot || {}));
         renderHourlyForecast(activeHourlyForecast, index, false);
       });
       hourlyCards.appendChild(card);
@@ -783,15 +772,20 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     }
 
-    return days.map((day, index) => ({
-      ...day,
-      hourlyForecast: normalizeHourlyForecastForDay(
+    return days.map((day, index) => {
+      const hourlyForecast = normalizeHourlyForecastForDay(
         hourlyBuckets.get(day.dayKey),
         index,
         weatherData,
         currentSnapshot
-      ),
-    }));
+      );
+
+      return {
+        ...day,
+        snapshot: buildDaySnapshot(day.snapshot, hourlyForecast, weatherData, currentSnapshot, index),
+        hourlyForecast,
+      };
+    });
   }
 
   function buildHourlyForecastBuckets(forecastData, weatherData, currentSnapshot) {
@@ -808,6 +802,7 @@ document.addEventListener("DOMContentLoaded", () => {
           temp: entry.temp,
           precip: Math.round((entry.pop || 0) * 100),
           condition: theme,
+          isEstimated: false,
           snapshot: {
             temp: entry.temp,
             conditionText: toTitleCase(entry.weather[0].description),
@@ -852,6 +847,7 @@ document.addEventListener("DOMContentLoaded", () => {
           temp: entry.main.temp,
           precip: Math.round((entry.pop || 0) * 100),
           condition: theme,
+          isEstimated: false,
           snapshot: {
             temp: entry.main.temp,
             conditionText: toTitleCase(entry.weather[0].description),
@@ -997,16 +993,18 @@ document.addEventListener("DOMContentLoaded", () => {
     return {
       ...baseline,
       ...snapshot,
+      temp: preferSnapshotValue(snapshot.temp, baseline.temp),
       feelsLike: preferSnapshotValue(snapshot.feelsLike, baseline.feelsLike),
       humidity: preferSnapshotValue(snapshot.humidity, baseline.humidity),
       windSpeed: preferSnapshotValue(snapshot.windSpeed, baseline.windSpeed),
       pressure: preferSnapshotValue(snapshot.pressure, baseline.pressure),
-      visibilityText: snapshot.visibilityText ?? null,
-      uvIndexText: snapshot.uvIndexText ?? null,
+      visibilityText: preferSnapshotText(snapshot.visibilityText, baseline.visibilityText),
+      uvIndexText: preferSnapshotText(snapshot.uvIndexText, baseline.uvIndexText),
       locationLabel: preferSnapshotText(snapshot.locationLabel, baseline.locationLabel),
       statusText: preferSnapshotText(snapshot.statusText, baseline.statusText),
       conditionText: preferSnapshotText(snapshot.conditionText, baseline.conditionText),
       dateText: preferSnapshotText(snapshot.dateText, baseline.dateText),
+      theme: preferSnapshotText(snapshot.theme, baseline.theme),
     };
   }
 
@@ -1040,11 +1038,11 @@ document.addEventListener("DOMContentLoaded", () => {
       temp: entry.temp.day,
       conditionText: toTitleCase(entry.weather[0].description),
       feelsLike: entry.feels_like?.day ?? entry.temp.day,
-      humidity: entry.humidity ?? null,
+      humidity: entry.humidity ?? estimateHumidity(theme, index),
       windSpeed: Math.round((entry.wind_speed || 0) * 3.6),
-      pressure: entry.pressure ?? null,
-      visibilityText: null,
-      uvIndexText: typeof entry.uvi === "number" ? String(Math.round(entry.uvi)) : null,
+      pressure: entry.pressure ?? estimatePressure(theme, index),
+      visibilityText: estimateVisibilityText(theme),
+      uvIndexText: typeof entry.uvi === "number" ? String(Math.round(entry.uvi)) : estimateForecastUvIndex(theme, index),
       statusText: index === 0 ? weatherThemes[theme].status : `${formatWeekday(entry.dt, weatherData.timezone)} forecast`,
       dateText: formatForecastDate(entry.dt, weatherData.timezone),
       locationLabel: currentLocationLabel,
@@ -1060,11 +1058,11 @@ document.addEventListener("DOMContentLoaded", () => {
       temp: average(group.temps),
       conditionText: toTitleCase(representative.weather[0].description),
       feelsLike: representative.main.feels_like ?? average(group.temps),
-      humidity: representative.main.humidity ?? null,
+      humidity: representative.main.humidity ?? estimateHumidity(theme, index),
       windSpeed: Math.round((representative.wind.speed || 0) * 3.6),
-      pressure: representative.main.pressure ?? null,
-      visibilityText: representative.visibility ? `${Math.round(representative.visibility / 1000)} km` : null,
-      uvIndexText: null,
+      pressure: representative.main.pressure ?? estimatePressure(theme, index),
+      visibilityText: representative.visibility ? `${Math.round(representative.visibility / 1000)} km` : estimateVisibilityText(theme),
+      uvIndexText: estimateForecastUvIndex(theme, index),
       statusText: index === 0 ? weatherThemes[theme].status : `${group.date.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })} forecast`,
       dateText: group.date.toLocaleDateString("en-US", {
         weekday: "long",
@@ -1080,20 +1078,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildForecastSnapshotFromFallback(forecast, index) {
     const dateText = forecast.fullDate || getRelativeForecastDate(index, fallbackWeather.timezone);
+    const averageTemp = average([forecast.min, forecast.max]);
+    const condition = forecast.condition;
 
     return {
-      temp: average([forecast.min, forecast.max]),
-      conditionText: toTitleCase(forecast.condition),
-      feelsLike: average([forecast.min, forecast.max]),
-      humidity: null,
-      windSpeed: null,
-      pressure: null,
-      visibilityText: null,
-      uvIndexText: null,
+      temp: averageTemp,
+      conditionText: toTitleCase(condition),
+      feelsLike: averageTemp + getConditionTemperatureOffset(condition),
+      humidity: estimateHumidity(condition, index),
+      windSpeed: estimateWindSpeed(condition, index),
+      pressure: estimatePressure(condition, index),
+      visibilityText: estimateVisibilityText(condition),
+      uvIndexText: estimateForecastUvIndex(condition, index),
       statusText: index === 0 ? "Preview mode" : `${forecast.day} forecast`,
       dateText,
       locationLabel: currentLocationLabel,
-      theme: forecast.condition,
+      theme: condition,
       liveClock: false,
     };
   }
@@ -1117,26 +1117,28 @@ document.addEventListener("DOMContentLoaded", () => {
         temp: Math.round((template.temp + tempOffset) * 10) / 10,
         precip,
         condition: template.condition,
+        isEstimated: true,
       };
 
       return {
         ...entry,
-        snapshot: buildHourlySnapshotFromFallback(entry, dt, weatherData, currentSnapshot),
+        snapshot: buildHourlySnapshotFromFallback(entry, dt, weatherData, currentSnapshot, dayIndex, hourIndex),
       };
     });
   }
 
-  function buildHourlySnapshotFromFallback(entry, timestamp, weatherData, currentSnapshot) {
+  function buildHourlySnapshotFromFallback(entry, timestamp, weatherData, currentSnapshot, dayIndex = 0, hourIndex = 0) {
+    const hourOfDay = getShiftedDate(timestamp, weatherData.timezone || fallbackWeather.timezone).getUTCHours();
     const snapshot = {
       ...currentSnapshot,
       temp: entry.temp,
       conditionText: toTitleCase(entry.condition),
-      feelsLike: entry.temp,
-      humidity: currentSnapshot?.humidity ?? fallbackWeather.main.humidity,
-      windSpeed: currentSnapshot?.windSpeed ?? Math.round((fallbackWeather.wind.speed || 0) * 3.6),
-      pressure: currentSnapshot?.pressure ?? fallbackWeather.main.pressure,
-      visibilityText: null,
-      uvIndexText: null,
+      feelsLike: entry.temp + getConditionTemperatureOffset(entry.condition),
+      humidity: estimateHourlyHumidity(entry.condition, hourOfDay, currentSnapshot?.humidity, dayIndex, hourIndex),
+      windSpeed: estimateHourlyWindSpeed(entry.condition, hourOfDay, currentSnapshot?.windSpeed, dayIndex, hourIndex),
+      pressure: estimateHourlyPressure(entry.condition, hourOfDay, currentSnapshot?.pressure, dayIndex, hourIndex),
+      visibilityText: estimateVisibilityText(entry.condition, hourOfDay),
+      uvIndexText: estimateHourlyUvIndex(entry.condition, hourOfDay),
       statusText: entry.label === "Now" ? "Preview mode" : `${entry.label} outlook`,
       dateText: formatHourlyDate(timestamp, weatherData.timezone || fallbackWeather.timezone),
       locationLabel: currentLocationLabel,
@@ -1163,6 +1165,85 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     return normalized.slice(0, 7);
+  }
+
+  function buildDaySnapshot(daySnapshot, hourlyForecast, weatherData, currentSnapshot, dayIndex) {
+    const representativeHour = getRepresentativeHourlyIndex(hourlyForecast, dayIndex, weatherData.timezone || 0);
+    const hourlyReference = hourlyForecast[representativeHour] || hourlyForecast.find(Boolean);
+    const hourlySnapshot = hourlyReference?.snapshot || {};
+    const baseDaySnapshot = daySnapshot || {};
+    const resolvedTheme = preferSnapshotText(baseDaySnapshot.theme, hourlySnapshot.theme ?? currentSnapshot?.theme) || "clouds";
+    const resolvedUvIndexText = resolveSelectedDayUvIndex(
+      hourlySnapshot.uvIndexText,
+      baseDaySnapshot.uvIndexText,
+      resolvedTheme,
+      dayIndex,
+      representativeHour
+    );
+
+    return {
+      ...baseDaySnapshot,
+      ...hourlySnapshot,
+      temp: preferSnapshotValue(baseDaySnapshot.temp, hourlySnapshot.temp ?? currentSnapshot?.temp),
+      feelsLike: preferSnapshotValue(hourlySnapshot.feelsLike, baseDaySnapshot.feelsLike ?? currentSnapshot?.feelsLike),
+      humidity: preferSnapshotValue(hourlySnapshot.humidity, baseDaySnapshot.humidity ?? currentSnapshot?.humidity),
+      windSpeed: preferSnapshotValue(hourlySnapshot.windSpeed, baseDaySnapshot.windSpeed ?? currentSnapshot?.windSpeed),
+      pressure: preferSnapshotValue(hourlySnapshot.pressure, baseDaySnapshot.pressure ?? currentSnapshot?.pressure),
+      visibilityText: preferSnapshotText(hourlySnapshot.visibilityText, baseDaySnapshot.visibilityText ?? currentSnapshot?.visibilityText),
+      uvIndexText: resolvedUvIndexText,
+      theme: resolvedTheme,
+      conditionText: preferSnapshotText(baseDaySnapshot.conditionText, hourlySnapshot.conditionText ?? currentSnapshot?.conditionText),
+      statusText: preferSnapshotText(baseDaySnapshot.statusText, hourlySnapshot.statusText ?? currentSnapshot?.statusText),
+      dateText: preferSnapshotText(baseDaySnapshot.dateText, hourlySnapshot.dateText ?? currentSnapshot?.dateText),
+      locationLabel: preferSnapshotText(baseDaySnapshot.locationLabel, hourlySnapshot.locationLabel ?? currentLocationLabel),
+      liveClock: false,
+    };
+  }
+
+  function getRepresentativeHourlyIndex(hourlyForecast, dayIndex, timezoneOffset) {
+    const preferredIndex = dayIndex === 0
+      ? getCurrentLocalHour(timezoneOffset)
+      : 12;
+
+    if (Array.isArray(hourlyForecast) && hourlyForecast[preferredIndex] && !hourlyForecast[preferredIndex].isEstimated) {
+      return preferredIndex;
+    }
+
+    if (!Array.isArray(hourlyForecast) || !hourlyForecast.length) {
+      return 0;
+    }
+
+    const liveIndices = hourlyForecast
+      .map((entry, index) => ({ entry, index }))
+      .filter((item) => item.entry && !item.entry.isEstimated);
+
+    if (liveIndices.length) {
+      return liveIndices.reduce((best, current) => {
+        const bestDistance = Math.abs(best.index - preferredIndex);
+        const currentDistance = Math.abs(current.index - preferredIndex);
+        return currentDistance < bestDistance ? current : best;
+      }).index;
+    }
+
+    const firstValidIndex = hourlyForecast.findIndex(Boolean);
+    return firstValidIndex === -1 ? 0 : firstValidIndex;
+  }
+
+  function resolveSelectedDayUvIndex(hourlyUvIndexText, dayUvIndexText, theme, dayIndex, representativeHour) {
+    const liveUv = preferSnapshotText(hourlyUvIndexText, "");
+    if (liveUv) {
+      return liveUv;
+    }
+
+    const forecastUv = preferSnapshotText(dayUvIndexText, "");
+    if (forecastUv) {
+      const adjustedUv = Math.max(0, Number(forecastUv) - Math.floor(dayIndex / 2));
+      return String(adjustedUv);
+    }
+
+    const hourlyEstimate = Number(estimateHourlyUvIndex(theme, representativeHour));
+    const dayAdjustment = Math.floor(dayIndex / 2);
+    return String(Math.max(0, hourlyEstimate - dayAdjustment));
   }
 
   function classifyCondition(weatherEntries) {
@@ -1219,6 +1300,126 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatMetricValue(value, suffix) {
     return value === "--" || value === null || value === undefined ? "--" : `${Math.round(value)}${suffix}`;
+  }
+
+  function estimateHumidity(theme, index = 0) {
+    const ranges = {
+      clear: 46,
+      clouds: 62,
+      rain: 82,
+      snow: 78,
+      storm: 86,
+      mist: 88,
+      night: 68,
+    };
+
+    return Math.max(28, Math.min(96, (ranges[theme] ?? 60) + index * 2));
+  }
+
+  function estimateWindSpeed(theme, index = 0) {
+    const ranges = {
+      clear: 12,
+      clouds: 16,
+      rain: 22,
+      snow: 18,
+      storm: 30,
+      mist: 10,
+      night: 11,
+    };
+
+    return Math.max(4, (ranges[theme] ?? 14) + index);
+  }
+
+  function estimatePressure(theme, index = 0) {
+    const ranges = {
+      clear: 1015,
+      clouds: 1011,
+      rain: 1006,
+      snow: 1008,
+      storm: 998,
+      mist: 1009,
+      night: 1013,
+    };
+
+    return (ranges[theme] ?? 1010) - Math.min(index, 4);
+  }
+
+  function estimateVisibilityText(theme, hourOfDay = 12) {
+    const ranges = {
+      clear: 10,
+      clouds: 9,
+      rain: 6,
+      snow: 5,
+      storm: 3,
+      mist: 2,
+      night: 7,
+    };
+
+    const baseVisibility = ranges[theme] ?? 8;
+    const nightAdjustment = hourOfDay < 6 || hourOfDay >= 19 ? -1 : 0;
+    return `${Math.max(1, baseVisibility + nightAdjustment)} km`;
+  }
+
+  function estimateForecastUvIndex(theme, index = 0) {
+    const ranges = {
+      clear: 8,
+      clouds: 5,
+      rain: 2,
+      snow: 6,
+      storm: 1,
+      mist: 2,
+      night: 0,
+    };
+
+    return String(Math.max(0, (ranges[theme] ?? 4) - Math.floor(index / 3)));
+  }
+
+  function estimateHourlyUvIndex(theme, hourOfDay) {
+    if (hourOfDay < 6 || hourOfDay >= 18) {
+      return "0";
+    }
+
+    const solarWeight = Math.max(0, 1 - Math.abs(12 - hourOfDay) / 6);
+    const weatherLimit = Number(estimateForecastUvIndex(theme, 0));
+    return String(Math.max(0, Math.round(weatherLimit * solarWeight)));
+  }
+
+  function estimateHourlyHumidity(theme, hourOfDay, baselineHumidity, dayIndex = 0, hourIndex = 0) {
+    const baseHumidity = baselineHumidity ?? estimateHumidity(theme, 0);
+    const humidityDelta = hourOfDay < 7 || hourOfDay > 19 ? 8 : -4;
+    const dayDelta = dayIndex * 3;
+    const hourWave = Math.round(Math.sin((hourIndex / 24) * Math.PI * 2) * 4);
+    return Math.max(28, Math.min(98, baseHumidity + humidityDelta + dayDelta + hourWave));
+  }
+
+  function estimateHourlyWindSpeed(theme, hourOfDay, baselineWindSpeed, dayIndex = 0, hourIndex = 0) {
+    const baseWindSpeed = baselineWindSpeed ?? estimateWindSpeed(theme, 0);
+    const windDelta = hourOfDay >= 12 && hourOfDay <= 17 ? 3 : -1;
+    const dayDelta = dayIndex;
+    const hourWave = Math.round(Math.cos((hourIndex / 24) * Math.PI * 2) * 2);
+    return Math.max(4, baseWindSpeed + windDelta + dayDelta + hourWave);
+  }
+
+  function estimateHourlyPressure(theme, hourOfDay, baselinePressure, dayIndex = 0, hourIndex = 0) {
+    const basePressure = baselinePressure ?? estimatePressure(theme, 0);
+    const pressureDelta = hourOfDay >= 15 && hourOfDay <= 20 ? -2 : 1;
+    const dayDelta = -dayIndex;
+    const hourWave = Math.round(Math.sin((hourIndex / 24) * Math.PI * 2) * 2);
+    return basePressure + pressureDelta + dayDelta + hourWave;
+  }
+
+  function getConditionTemperatureOffset(theme) {
+    const offsets = {
+      clear: 1,
+      clouds: 0,
+      rain: -1,
+      snow: -2,
+      storm: -2,
+      mist: -1,
+      night: -1,
+    };
+
+    return offsets[theme] ?? 0;
   }
 
   function preferSnapshotValue(primary, fallback) {
