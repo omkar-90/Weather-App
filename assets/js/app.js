@@ -565,10 +565,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const initialHourlyIndex = getRepresentativeHourlyIndex(activeHourlyForecast, safeIndex, lastWeatherSnapshot?.timezone || 0);
     const initialHourlySnapshot = activeHourlyForecast[initialHourlyIndex]?.snapshot || {};
-    const selectedSnapshot = mergeHeroSnapshot({
+    const rawSelectedSnapshot = {
       ...(selectedForecast.snapshot || {}),
       ...initialHourlySnapshot,
-    });
+    };
+    const selectedSnapshot = mergeHeroSnapshot(rawSelectedSnapshot);
+
+    if (safeIndex > 0 && !hasSnapshotText(rawSelectedSnapshot.visibilityText)) {
+      selectedSnapshot.visibilityText = null;
+    }
 
     currentHeroBaseline = selectedSnapshot;
     renderHeroSnapshot(selectedSnapshot);
@@ -1038,7 +1043,7 @@ document.addEventListener("DOMContentLoaded", () => {
       humidity: representative.main.humidity ?? null,
       windSpeed: Math.round((representative.wind.speed || 0) * 3.6),
       pressure: representative.main.pressure ?? null,
-      visibilityText: representative.visibility ? `${Math.round(representative.visibility / 1000)} km` : null,
+      visibilityText: typeof representative.visibility === "number" ? `${Math.round(representative.visibility / 1000)} km` : null,
       uvIndexText: null,
       statusText: index === 0 ? weatherThemes[theme].status : `${group.date.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })} forecast`,
       dateText: group.date.toLocaleDateString("en-US", {
@@ -1066,6 +1071,9 @@ document.addEventListener("DOMContentLoaded", () => {
       dayIndex,
       representativeHour
     );
+    const resolvedVisibilityText = dayIndex === 0
+      ? preferSnapshotText(hourlySnapshot.visibilityText, baseDaySnapshot.visibilityText ?? currentSnapshot?.visibilityText)
+      : preferSnapshotText(hourlySnapshot.visibilityText, baseDaySnapshot.visibilityText);
 
     return {
       ...baseDaySnapshot,
@@ -1075,7 +1083,7 @@ document.addEventListener("DOMContentLoaded", () => {
       humidity: preferSnapshotValue(hourlySnapshot.humidity, baseDaySnapshot.humidity ?? currentSnapshot?.humidity),
       windSpeed: preferSnapshotValue(hourlySnapshot.windSpeed, baseDaySnapshot.windSpeed ?? currentSnapshot?.windSpeed),
       pressure: preferSnapshotValue(hourlySnapshot.pressure, baseDaySnapshot.pressure ?? currentSnapshot?.pressure),
-      visibilityText: preferSnapshotText(hourlySnapshot.visibilityText, baseDaySnapshot.visibilityText ?? currentSnapshot?.visibilityText),
+      visibilityText: resolvedVisibilityText,
       uvIndexText: resolvedUvIndexText,
       theme: resolvedTheme,
       conditionText: preferSnapshotText(baseDaySnapshot.conditionText, hourlySnapshot.conditionText ?? currentSnapshot?.conditionText),
@@ -1174,6 +1182,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function preferSnapshotText(primary, fallback) {
     return primary === null || primary === undefined || primary === "" || primary === "--" ? fallback : primary;
+  }
+
+  function hasSnapshotText(value) {
+    return value !== null && value !== undefined && value !== "" && value !== "--";
   }
 
   function average(values) {
