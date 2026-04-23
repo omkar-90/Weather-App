@@ -86,16 +86,16 @@
               <p class="status-chip" id="status-chip">Live conditions</p>
               <div class="temperature-row">
                 <div>
-                  <p class="temperature" id="temperature">28&deg;C</p>
-                  <p class="condition" id="condition">Cloudy</p>
+                  <p class="temperature" id="temperature">--</p>
+                  <p class="condition" id="condition">--</p>
                 </div>
                 <div class="weather-icon-wrap" id="weather-icon-wrap" aria-hidden="true">
                   <div class="weather-icon" id="weather-icon"></div>
                 </div>
               </div>
               <div class="meta">
-                <p class="location" id="city-name">Tokyo, JP</p>
-                <p class="date-time" id="date-time">Tue, Apr 21 &bull; 09:42 AM</p>
+                <p class="location" id="city-name">Search for a city</p>
+                <p class="date-time" id="date-time">Live weather will appear here</p>
               </div>
             </div>
 
@@ -108,7 +108,7 @@
                   </svg>
                 </div>
                 <span>Wind</span>
-                <strong id="wind-speed">18 km/h</strong>
+                <strong id="wind-speed">--</strong>
               </div>
               <div class="mini-stat glass-tile">
                 <div class="mini-stat-icon" aria-hidden="true">
@@ -117,7 +117,7 @@
                   </svg>
                 </div>
                 <span>Humidity</span>
-                <strong id="humidity">62%</strong>
+                <strong id="humidity">--</strong>
               </div>
               <div class="mini-stat glass-tile">
                 <div class="mini-stat-icon" aria-hidden="true">
@@ -127,7 +127,7 @@
                   </svg>
                 </div>
                 <span>Feels Like</span>
-                <strong id="feels-like">30&deg;C</strong>
+                <strong id="feels-like">--</strong>
               </div>
               <div class="mini-stat glass-tile">
                 <div class="mini-stat-icon" aria-hidden="true">
@@ -137,7 +137,7 @@
                   </svg>
                 </div>
                 <span>Pressure</span>
-                <strong id="pressure">1012 hPa</strong>
+                <strong id="pressure">--</strong>
               </div>
               <div class="mini-stat glass-tile">
                 <div class="mini-stat-icon" aria-hidden="true">
@@ -147,7 +147,7 @@
                   </svg>
                 </div>
                 <span>Visibility</span>
-                <strong id="visibility">8 km</strong>
+                <strong id="visibility">--</strong>
               </div>
               <div class="mini-stat glass-tile">
                 <div class="mini-stat-icon" aria-hidden="true">
@@ -157,14 +157,14 @@
                   </svg>
                 </div>
                 <span>UV Index</span>
-                <strong id="uv-index">6</strong>
+                <strong id="uv-index">--</strong>
               </div>
             </div>
           </section>
 
-          <section class="state-layer" aria-live="polite">
+          <section class="state-layer" id="state-layer" aria-live="polite" hidden>
             <div class="error-banner" id="error-message" hidden>
-              <strong>Could not load weather data.</strong>
+              <strong id="error-title">Could not load weather data.</strong>
               <p id="error-text">Try another city name or use your current location.</p>
             </div>
           </section>
@@ -173,9 +173,9 @@
             <div class="section-heading">
               <div>
                 <p class="eyebrow">Outlook</p>
-                <h2>7-Day Forecast</h2>
+                <h2>Live Forecast</h2>
               </div>
-              <p class="section-copy">Swipe or scroll for the week ahead.</p>
+              <p class="section-copy">Swipe or scroll through available live forecast data.</p>
             </div>
             <div class="forecast-rail" id="forecast-cards"></div>
           </section>
