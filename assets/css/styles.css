@@ -785,6 +785,10 @@ h2 {
   margin: 0;
 }
 
+.error-banner[hidden] {
+  display: none;
+}
+
 .forecast-card {
   position: relative;
   overflow: hidden;
@@ -1140,6 +1144,30 @@ body.weather-clear {
   --bg-end: #10243f;
 }
 
+body.weather-few-clouds {
+  --bg-start: #132347;
+  --bg-mid: #4a78b7;
+  --bg-end: #1c3158;
+}
+
+body.weather-scattered-clouds {
+  --bg-start: #102036;
+  --bg-mid: #546f95;
+  --bg-end: #1a2e4d;
+}
+
+body.weather-broken-clouds {
+  --bg-start: #0b1727;
+  --bg-mid: #435773;
+  --bg-end: #152337;
+}
+
+body.weather-overcast {
+  --bg-start: #09131f;
+  --bg-mid: #3a4a60;
+  --bg-end: #111c2b;
+}
+
 body.weather-clouds {
   --bg-start: #0d1827;
   --bg-mid: #475f82;
@@ -1177,10 +1205,32 @@ body.weather-night {
 }
 
 body.weather-clear .sun-glow,
+body.weather-few-clouds .sun-glow,
+body.weather-scattered-clouds .sun-glow,
 body.weather-clouds .sun-glow {
   opacity: 1;
 }
 
+body.weather-few-clouds .sun-glow {
+  opacity: 0.85;
+}
+
+body.weather-scattered-clouds .sun-glow {
+  opacity: 0.52;
+}
+
+body.weather-broken-clouds .sun-glow {
+  opacity: 0.22;
+}
+
+body.weather-overcast .sun-glow {
+  opacity: 0.08;
+}
+
+body.weather-few-clouds .cloud,
+body.weather-scattered-clouds .cloud,
+body.weather-broken-clouds .cloud,
+body.weather-overcast .cloud,
 body.weather-clouds .cloud,
 body.weather-rain .cloud,
 body.weather-snow .cloud,
@@ -1188,6 +1238,22 @@ body.weather-storm .cloud,
 body.weather-mist .cloud,
 body.weather-night .cloud {
   opacity: 0.72;
+}
+
+body.weather-few-clouds .cloud {
+  opacity: 0.36;
+}
+
+body.weather-scattered-clouds .cloud {
+  opacity: 0.54;
+}
+
+body.weather-broken-clouds .cloud {
+  opacity: 0.82;
+}
+
+body.weather-overcast .cloud {
+  opacity: 0.94;
 }
 
 body.weather-rain .rain-layer,
