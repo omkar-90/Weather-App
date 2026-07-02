@@ -24,6 +24,7 @@
   --bg-start: #081124;
   --bg-mid: #16325c;
   --bg-end: #081320;
+  --icon-color: rgba(255, 255, 255, 0.95);
 }
 
 body.theme-light {
@@ -42,11 +43,12 @@ body.theme-light {
   --danger-surface: rgba(255, 230, 235, 0.72);
   --input-bg: rgba(255, 255, 255, 0.62);
   --scrollbar: rgba(15, 34, 60, 0.18);
-  --bg-start: #7fcaf5;
-  --bg-mid: #d9edff;
-  --bg-end: #f8fbff;
+  --bg-start: #a3d9ff;
+  --bg-mid: #e1f2ff;
+  --bg-end: #f4f9ff;
   --shadow-soft: 0 20px 50px rgba(78, 110, 165, 0.18);
   --shadow-card: 0 16px 32px rgba(90, 124, 178, 0.16);
+  --icon-color: rgba(21, 34, 60, 0.85);
 }
 
 * {
@@ -650,11 +652,30 @@ h2 {
 .icon-svg {
   width: 100%;
   height: 100%;
-  fill: rgba(255, 255, 255, 0.95);
-  stroke: rgba(255, 255, 255, 0.95);
+  fill: var(--icon-color);
+  stroke: var(--icon-color);
   stroke-width: 8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.hero-copy .icon-svg {
+  fill: rgba(255, 255, 255, 0.95);
+  stroke: rgba(255, 255, 255, 0.95);
+}
+
+.hero-copy {
+  color: #f5f7ff !important;
+}
+
+.hero-copy .condition,
+.hero-copy .date-time {
+  color: rgba(245, 247, 255, 0.76) !important;
+}
+
+.hero-copy .status-chip {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #d9f0ff !important;
 }
 
 .icon-sun circle {
@@ -707,14 +728,22 @@ h2 {
 }
 
 .icon-night path {
-  fill: #dbe7ff;
+  fill: var(--icon-color);
   stroke: none;
 }
 
-.icon-night circle {
+.hero-copy .icon-night path {
   fill: #dbe7ff;
+}
+
+.icon-night circle {
+  fill: var(--icon-color);
   stroke: none;
   animation: twinkle 1.8s ease-in-out infinite;
+}
+
+.hero-copy .icon-night circle {
+  fill: #dbe7ff;
 }
 
 .hero-aside {
@@ -955,15 +984,67 @@ h2 {
   stroke-linejoin: round;
 }
 
-.hourly-point circle {
+.hourly-col .hourly-point circle {
   fill: rgba(255, 138, 61, 0.18);
   stroke: #ff8a3d;
   stroke-width: 2;
   transition: r 0.2s ease, fill 0.2s ease;
 }
 
-.hourly-point.is-active circle {
+.hourly-col.is-active .hourly-point circle {
   fill: rgba(255, 255, 255, 0.9);
+}
+
+.hourly-gridline {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1px;
+  stroke-dasharray: 4 4;
+  transition: stroke 0.3s ease, stroke-width 0.3s ease, stroke-dasharray 0.3s ease;
+}
+
+.hourly-col.is-active .hourly-gridline {
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: none;
+  opacity: 0.85;
+}
+
+.hourly-col:hover .hourly-gridline {
+  stroke: rgba(255, 255, 255, 0.28);
+}
+
+.hourly-chart-temp {
+  fill: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 11px;
+  pointer-events: none;
+  transition: fill 0.3s ease, font-weight 0.3s ease;
+}
+
+.hourly-col.is-active .hourly-chart-temp {
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+
+.hourly-col:hover .hourly-chart-temp {
+  fill: var(--text-primary);
+}
+
+.hourly-chart-time {
+  fill: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  pointer-events: none;
+  transition: fill 0.3s ease, font-weight 0.3s ease;
+}
+
+.hourly-col.is-active .hourly-chart-time {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.hourly-col:hover .hourly-chart-time {
+  fill: var(--text-primary);
 }
 
 .hourly-chart-tooltip {
@@ -1217,67 +1298,130 @@ h2 {
   opacity: 0.42;
 }
 
-body.weather-clear {
+/* Default/Dark Mode Weather Backgrounds */
+body:not(.theme-light).weather-clear {
   --bg-start: #0b1730;
   --bg-mid: #21518d;
   --bg-end: #10243f;
 }
 
-body.weather-few-clouds {
+body:not(.theme-light).weather-few-clouds {
   --bg-start: #132347;
   --bg-mid: #4a78b7;
   --bg-end: #1c3158;
 }
 
-body.weather-scattered-clouds {
+body:not(.theme-light).weather-scattered-clouds {
   --bg-start: #102036;
   --bg-mid: #546f95;
   --bg-end: #1a2e4d;
 }
 
-body.weather-broken-clouds {
+body:not(.theme-light).weather-broken-clouds {
   --bg-start: #0b1727;
   --bg-mid: #435773;
   --bg-end: #152337;
 }
 
-body.weather-overcast {
+body:not(.theme-light).weather-overcast {
   --bg-start: #09131f;
   --bg-mid: #3a4a60;
   --bg-end: #111c2b;
 }
 
-body.weather-clouds {
+body:not(.theme-light).weather-clouds {
   --bg-start: #0d1827;
   --bg-mid: #475f82;
   --bg-end: #15253a;
 }
 
-body.weather-rain {
+body:not(.theme-light).weather-rain {
   --bg-start: #07111f;
   --bg-mid: #20405c;
   --bg-end: #0f1b2c;
 }
 
-body.weather-snow {
+body:not(.theme-light).weather-snow {
   --bg-start: #7da7d9;
   --bg-mid: #cfe4ff;
   --bg-end: #8cb4db;
 }
 
-body.weather-storm {
+body:not(.theme-light).weather-storm {
   --bg-start: #040815;
   --bg-mid: #1e2544;
   --bg-end: #090d18;
 }
 
-body.weather-mist {
+body:not(.theme-light).weather-mist {
   --bg-start: #5a6778;
   --bg-mid: #8998a8;
   --bg-end: #5f7186;
 }
 
-body.weather-night {
+body:not(.theme-light).weather-night {
+  --bg-start: #030814;
+  --bg-mid: #0d1d4a;
+  --bg-end: #060d1f;
+}
+
+/* Light Mode Weather Backgrounds */
+body.theme-light.weather-clear {
+  --bg-start: #a3d9ff;
+  --bg-mid: #e1f2ff;
+  --bg-end: #f4f9ff;
+}
+
+body.theme-light.weather-few-clouds {
+  --bg-start: #9ac9f3;
+  --bg-mid: #dbeeff;
+  --bg-end: #f5f9ff;
+}
+
+body.theme-light.weather-scattered-clouds {
+  --bg-start: #8ebde7;
+  --bg-mid: #d4e7f8;
+  --bg-end: #f1f6fc;
+}
+
+body.theme-light.weather-broken-clouds {
+  --bg-start: #7daed7;
+  --bg-mid: #c8dcf0;
+  --bg-end: #ebf1f7;
+}
+
+body.theme-light.weather-overcast,
+body.theme-light.weather-clouds {
+  --bg-start: #7899bc;
+  --bg-mid: #bbcddc;
+  --bg-end: #e6ebf0;
+}
+
+body.theme-light.weather-rain {
+  --bg-start: #6180a2;
+  --bg-mid: #aabcca;
+  --bg-end: #dce3e8;
+}
+
+body.theme-light.weather-snow {
+  --bg-start: #a5d2ff;
+  --bg-mid: #e8f3ff;
+  --bg-end: #ffffff;
+}
+
+body.theme-light.weather-storm {
+  --bg-start: #485c7c;
+  --bg-mid: #8a9cb7;
+  --bg-end: #cdd6e2;
+}
+
+body.theme-light.weather-mist {
+  --bg-start: #8ea0b5;
+  --bg-mid: #c0cedd;
+  --bg-end: #e8eef3;
+}
+
+body.theme-light.weather-night {
   --bg-start: #030814;
   --bg-mid: #0d1d4a;
   --bg-end: #060d1f;

@@ -459,9 +459,7 @@ document.addEventListener("DOMContentLoaded", () => {
         saveLastLocation(weatherData, { city, lat, lon, label: locationLabel });
       }
 
-      if (city) {
-        cityInput.value = weatherData.name;
-      }
+      cityInput.value = weatherData.name;
 
       renderWeather(weatherData, forecastData);
       if (warningMessage) {
@@ -678,6 +676,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const chartMarkup = buildHourlyChartMarkup(safeHourly, boundedIndex);
     hourlyChart.innerHTML = chartMarkup;
+
+    // Bind event listeners to interactive columns in the SVG chart
+    const rects = hourlyChart.querySelectorAll(".chart-interactive-rect");
+    rects.forEach((rect) => {
+      rect.addEventListener("click", () => {
+        const index = parseInt(rect.getAttribute("data-index"), 10);
+        renderHeroSnapshot(mergeHeroSnapshot(safeHourly[index].snapshot || {}));
+        renderHourlyForecast(activeHourlyForecast, index, false);
+      });
+    });
 
     if (resetScroll) {
       requestAnimationFrame(() => {
@@ -979,11 +987,20 @@ document.addEventListener("DOMContentLoaded", () => {
           </defs>
           <path d="${pathData} L ${points[points.length - 1].x} ${chartHeight - bottomPadding + 10} L ${points[0].x} ${chartHeight - bottomPadding + 10} Z" class="hourly-area"></path>
           <path d="${pathData}" class="hourly-line"></path>
-          ${points.map((point, index) => `
-            <g class="hourly-point ${index === activeIndex ? "is-active" : ""}">
-              <circle cx="${point.x}" cy="${point.y}" r="${index === activeIndex ? 6 : 4}"></circle>
-            </g>
-          `).join("")}
+          ${points.map((point, index) => {
+            const isActive = index === activeIndex;
+            return `
+              <g class="hourly-col ${isActive ? "is-active" : ""}">
+                <line x1="${point.x}" y1="${point.y}" x2="${point.x}" y2="${chartHeight - bottomPadding}" class="hourly-gridline" />
+                <text x="${point.x}" y="${point.y - 12}" class="hourly-chart-temp" text-anchor="middle">${Math.round(point.entry.temp)}°</text>
+                <text x="${point.x}" y="${chartHeight - 16}" class="hourly-chart-time" text-anchor="middle">${point.entry.shortLabel}</text>
+                <g class="hourly-point">
+                  <circle cx="${point.x}" cy="${point.y}" r="${isActive ? 6 : 4}"></circle>
+                </g>
+                <rect x="${point.x - stepX / 2}" y="0" width="${stepX}" height="${chartHeight}" fill="transparent" class="chart-interactive-rect" data-index="${index}" style="cursor:pointer; pointer-events:all;"></rect>
+              </g>
+            `;
+          }).join("")}
         </svg>
         <div class="hourly-chart-tooltip" style="left:${Math.max(24, Math.min(activePoint.x - 78, chartWidth - 180))}px; top:${Math.max(22, activePoint.y + 16)}px;">
           <strong>${activePoint.entry.label}</strong>
