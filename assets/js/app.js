@@ -6,6 +6,22 @@ const weatherThemes = {
     bodyClass: "weather-clear",
     status: "Bright skies",
   },
+  "few-clouds": {
+    bodyClass: "weather-few-clouds",
+    status: "Mostly sunny",
+  },
+  "scattered-clouds": {
+    bodyClass: "weather-scattered-clouds",
+    status: "Partly cloudy",
+  },
+  "broken-clouds": {
+    bodyClass: "weather-broken-clouds",
+    status: "Mostly cloudy",
+  },
+  overcast: {
+    bodyClass: "weather-overcast",
+    status: "Overcast skies",
+  },
   clouds: {
     bodyClass: "weather-clouds",
     status: "Soft cloud cover",
@@ -199,6 +215,38 @@ const cardArtMap = {
     horizon: "#ffd7b0",
     motif: "sun",
   }),
+  "few-clouds": createWeatherCardArt({
+    top: "#6faadf",
+    bottom: "#3a6d9e",
+    glow: "#ffd88a",
+    accent: "#edf4ff",
+    horizon: "#7a96ba",
+    motif: "clouds",
+  }),
+  "scattered-clouds": createWeatherCardArt({
+    top: "#8097b5",
+    bottom: "#4b6584",
+    glow: "#c8d8f0",
+    accent: "#edf4ff",
+    horizon: "#8798b2",
+    motif: "clouds",
+  }),
+  "broken-clouds": createWeatherCardArt({
+    top: "#5a7295",
+    bottom: "#3a5070",
+    glow: "#a8c0d8",
+    accent: "#d8e8f8",
+    horizon: "#6a8aaa",
+    motif: "clouds",
+  }),
+  overcast: createWeatherCardArt({
+    top: "#3a4a60",
+    bottom: "#222f40",
+    glow: "#8a9aac",
+    accent: "#c8d2dc",
+    horizon: "#4a5a70",
+    motif: "clouds",
+  }),
   clouds: createWeatherCardArt({
     top: "#90a9c7",
     bottom: "#4b6584",
@@ -277,6 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const visibilityEl = document.getElementById("visibility");
   const uvIndexEl = document.getElementById("uv-index");
   const statusChip = document.getElementById("status-chip");
+  const heroAside = document.querySelector(".hero-aside");
 
   let currentClockInterval = null;
   let lastWeatherSnapshot = null;
@@ -508,6 +557,13 @@ document.addEventListener("DOMContentLoaded", () => {
     currentLocationLabel = `${weatherData.name}, ${weatherData.sys.country}`;
     const currentSnapshot = buildCurrentSnapshot(weatherData);
     currentHeroBaseline = currentSnapshot;
+
+    // Trigger staggered entrance for mini-stat tiles
+    if (heroAside) {
+      heroAside.classList.remove("is-animating");
+      void heroAside.offsetWidth; // force reflow to restart animation
+      heroAside.classList.add("is-animating");
+    }
 
     activeForecastDays = buildInteractiveForecastDays(forecastData, weatherData, currentSnapshot);
     selectForecastDay(0);
@@ -950,9 +1006,14 @@ document.addEventListener("DOMContentLoaded", () => {
       dateTimeEl.textContent = snapshot.dateText;
     }
 
+    // Temperature flip animation
+    temperatureEl.classList.remove("is-animating");
+    void temperatureEl.offsetWidth;
     temperatureEl.textContent = snapshot.temp === null || snapshot.temp === undefined
       ? "--"
       : `${Math.round(snapshot.temp)}\u00B0C`;
+    temperatureEl.classList.add("is-animating");
+
     conditionEl.textContent = snapshot.conditionText || "--";
     cityNameEl.textContent = snapshot.locationLabel || currentLocationLabel;
     feelsLikeEl.textContent = formatMetricValue(snapshot.feelsLike, "\u00B0C");
@@ -965,6 +1026,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     weatherIconEl.innerHTML = conditionIconMap[theme] || conditionIconMap.clouds;
     weatherIconWrap.dataset.weather = theme;
+
+    // Icon pop animation on every theme change
+    weatherIconWrap.classList.remove("icon-pop");
+    void weatherIconWrap.offsetWidth;
+    weatherIconWrap.classList.add("icon-pop");
+
     heroCopyEl.style.setProperty("--hero-art", `url("${cardArtMap[theme] || cardArtMap.clear}")`);
     applyWeatherTheme(theme);
   }
@@ -1249,18 +1316,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (main.includes("cloud")) {
-      return isNight ? "night" : "clouds";
+      if (isNight) return "night";
+      if (description.includes("few"))       return "few-clouds";
+      if (description.includes("scattered")) return "scattered-clouds";
+      if (description.includes("broken"))    return "broken-clouds";
+      if (description.includes("overcast"))  return "overcast";
+      return "clouds";
     }
 
     return isNight ? "night" : "clear";
   }
 
   function isNightTime(weatherData) {
-    if (!weatherData.sys || !weatherData.sys.sunset) {
+    if (!weatherData.sys) {
       return false;
     }
 
     const currentUtc = Math.floor(Date.now() / 1000);
+    const sunrise = weatherData.sys.sunrise;
+    const sunset  = weatherData.sys.sunset;
+
+    // Use real sunrise/sunset when available (OpenWeatherMap provides these)
+    if (typeof sunrise === "number" && typeof sunset === "number") {
+      return currentUtc < sunrise || currentUtc > sunset;
+    }
+
+    // Fallback: estimate from local hour when sys data is incomplete
     const localSeconds = currentUtc + (weatherData.timezone || 0);
     const hours = new Date(localSeconds * 1000).getUTCHours();
     return hours < 6 || hours >= 18;

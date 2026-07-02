@@ -258,6 +258,7 @@ input {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   transform: translateZ(0);
+  transition: border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .weather-card {
@@ -403,7 +404,7 @@ h2 {
   background: linear-gradient(145deg, #ffffff, rgba(255, 255, 255, 0.65));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
   transform: translateX(0);
-  transition: transform 0.3s ease;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .theme-switch input:checked + .theme-switch-track .theme-switch-thumb {
@@ -415,6 +416,7 @@ h2 {
   grid-template-columns: 1fr auto auto;
   gap: 12px;
   margin-bottom: 22px;
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .search-input {
@@ -427,13 +429,13 @@ h2 {
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .search-input:focus-within {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.45);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.12), 0 0 0 4px rgba(142, 197, 255, 0.12);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.12), 0 0 0 4px rgba(142, 197, 255, 0.15);
 }
 
 .search-input svg {
@@ -464,11 +466,11 @@ h2 {
   border: 0;
   cursor: pointer;
   color: var(--text-primary);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.22s ease;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .action-button:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-card);
 }
 
@@ -484,6 +486,25 @@ h2 {
   color: #081120;
   font-weight: 700;
   box-shadow: 0 14px 32px rgba(61, 115, 255, 0.22);
+  position: relative;
+  overflow: hidden;
+}
+
+.primary-action::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-25deg);
+  pointer-events: none;
+}
+
+.primary-action:hover::after {
+  left: 150%;
+  transition: left 0.85s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ghost-action {
@@ -501,6 +522,7 @@ h2 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) both 0.1s;
 }
 
 .hero-copy {
@@ -553,7 +575,8 @@ h2 {
   height: 8px;
   border-radius: 50%;
   background: var(--accent-warm);
-  box-shadow: 0 0 0 6px rgba(255, 184, 107, 0.12);
+  box-shadow: 0 0 0 0 rgba(255, 184, 107, 0.6);
+  animation: chipPing 2.2s ease-out infinite;
 }
 
 .temperature-row {
@@ -614,6 +637,14 @@ h2 {
 .weather-icon {
   width: 92px;
   height: 92px;
+}
+
+.weather-icon-wrap.icon-pop {
+  animation: iconPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.temperature.is-animating {
+  animation: tempFlip 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .icon-svg {
@@ -692,6 +723,16 @@ h2 {
   gap: 12px;
 }
 
+.hero-aside.is-animating .mini-stat {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.hero-aside.is-animating .mini-stat:nth-child(1) { animation-delay: 0.04s; }
+.hero-aside.is-animating .mini-stat:nth-child(2) { animation-delay: 0.09s; }
+.hero-aside.is-animating .mini-stat:nth-child(3) { animation-delay: 0.14s; }
+.hero-aside.is-animating .mini-stat:nth-child(4) { animation-delay: 0.19s; }
+.hero-aside.is-animating .mini-stat:nth-child(5) { animation-delay: 0.24s; }
+.hero-aside.is-animating .mini-stat:nth-child(6) { animation-delay: 0.29s; }
+
 .mini-stat {
   position: relative;
   overflow: hidden;
@@ -703,11 +744,11 @@ h2 {
   flex-direction: column;
   justify-content: center;
   gap: 8px;
-  transition: transform 0.24s ease, border-color 0.24s ease, background 0.24s ease, box-shadow 0.24s ease;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mini-stat:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px) scale(1.025);
   border-color: rgba(255, 255, 255, 0.36);
   background: rgba(255, 255, 255, 0.14);
   box-shadow: var(--shadow-card);
@@ -802,19 +843,20 @@ h2 {
   color: var(--text-primary);
   cursor: pointer;
   min-width: 0;
-  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .forecast-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-5px) scale(1.025);
   background: rgba(255, 255, 255, 0.14);
   box-shadow: var(--shadow-card);
 }
 
 .forecast-card.is-active {
   background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.42);
-  box-shadow: 0 16px 32px rgba(5, 10, 25, 0.16);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px var(--glow-accent), 0 16px 32px rgba(5, 10, 25, 0.16);
 }
 
 .forecast-card:focus-visible {
@@ -822,11 +864,24 @@ h2 {
   outline-offset: 2px;
 }
 
+.forecast-card:nth-child(1) { animation-delay: 0s; }
+.forecast-card:nth-child(2) { animation-delay: 0.06s; }
+.forecast-card:nth-child(3) { animation-delay: 0.12s; }
+.forecast-card:nth-child(4) { animation-delay: 0.18s; }
+.forecast-card:nth-child(5) { animation-delay: 0.24s; }
+.forecast-card:nth-child(6) { animation-delay: 0.30s; }
+.forecast-card:nth-child(7) { animation-delay: 0.36s; }
+
 .forecast-section {
   position: relative;
   z-index: 1;
   margin-top: 24px;
   min-width: 0;
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) both 0.2s;
+}
+
+.forecast-section + .forecast-section {
+  animation-delay: 0.35s;
 }
 
 .hourly-chart-shell {
@@ -862,13 +917,18 @@ h2 {
 
 .hourly-chart-scroll::-webkit-scrollbar,
 .hourly-rail-shell::-webkit-scrollbar {
-  height: 8px;
+  height: 6px;
 }
 
 .hourly-chart-scroll::-webkit-scrollbar-thumb,
 .hourly-rail-shell::-webkit-scrollbar-thumb {
   background: var(--scrollbar);
   border-radius: 999px;
+}
+
+.hourly-chart-scroll::-webkit-scrollbar-thumb:hover,
+.hourly-rail-shell::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 
 .hourly-chart-canvas {
@@ -971,20 +1031,34 @@ h2 {
   justify-content: space-between;
   cursor: pointer;
   scroll-snap-align: start;
-  transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hourly-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px) scale(1.025);
   background: rgba(255, 255, 255, 0.22);
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
 }
 
 .hourly-card.is-active {
   background: rgba(255, 255, 255, 0.28);
-  border-color: rgba(255, 255, 255, 0.42);
-  box-shadow: 0 14px 28px rgba(5, 10, 25, 0.14);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px var(--glow-accent), 0 14px 28px rgba(5, 10, 25, 0.14);
 }
+
+.hourly-card:nth-child(1)  { animation-delay: 0s; }
+.hourly-card:nth-child(2)  { animation-delay: 0.03s; }
+.hourly-card:nth-child(3)  { animation-delay: 0.06s; }
+.hourly-card:nth-child(4)  { animation-delay: 0.09s; }
+.hourly-card:nth-child(5)  { animation-delay: 0.12s; }
+.hourly-card:nth-child(6)  { animation-delay: 0.15s; }
+.hourly-card:nth-child(7)  { animation-delay: 0.18s; }
+.hourly-card:nth-child(8)  { animation-delay: 0.21s; }
+.hourly-card:nth-child(9)  { animation-delay: 0.24s; }
+.hourly-card:nth-child(10) { animation-delay: 0.27s; }
+.hourly-card:nth-child(11) { animation-delay: 0.30s; }
+.hourly-card:nth-child(12) { animation-delay: 0.33s; }
 
 .hourly-empty {
   min-height: 96px;
@@ -1055,12 +1129,16 @@ h2 {
 }
 
 .forecast-rail::-webkit-scrollbar {
-  height: 8px;
+  height: 6px;
 }
 
 .forecast-rail::-webkit-scrollbar-thumb {
   background: var(--scrollbar);
   border-radius: 999px;
+}
+
+.forecast-rail::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 
 .forecast-card {
@@ -1093,6 +1171,7 @@ h2 {
   color: var(--text-secondary);
   font-size: 0.82rem;
   gap: 12px;
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) both 0.45s;
 }
 
 .app-footer p {
@@ -1202,6 +1281,39 @@ body.weather-night {
   --bg-start: #030814;
   --bg-mid: #0d1d4a;
   --bg-end: #060d1f;
+}
+
+/* Night: dim the floating CSS clouds — real sky is clear */
+body.weather-night .cloud {
+  opacity: 0.08;
+}
+
+/* Night stars */
+body.weather-night .background-layers::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 1.5px at 8% 10%, rgba(255,255,255,0.92) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 19% 6%,  rgba(255,255,255,0.72) 0%, transparent 100%),
+    radial-gradient(circle 2px  at 31% 14%, rgba(255,255,255,0.58) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 46% 8%,  rgba(255,255,255,0.82) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 63% 16%, rgba(255,255,255,0.70) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 76% 7%,  rgba(255,255,255,0.88) 0%, transparent 100%),
+    radial-gradient(circle 2px  at 87% 20%, rgba(255,255,255,0.52) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 94% 11%, rgba(255,255,255,0.78) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 13% 28%, rgba(255,255,255,0.42) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 56% 33%, rgba(255,255,255,0.62) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 71% 29%, rgba(255,255,255,0.50) 0%, transparent 100%),
+    radial-gradient(circle 2px  at 41% 23%, rgba(255,255,255,0.68) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 24% 19%, rgba(255,255,255,0.46) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 91% 36%, rgba(255,255,255,0.40) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 4%  42%, rgba(255,255,255,0.60) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 35% 38%, rgba(255,255,255,0.35) 0%, transparent 100%),
+    radial-gradient(circle 1px  at 52% 44%, rgba(255,255,255,0.55) 0%, transparent 100%),
+    radial-gradient(circle 2px  at 80% 43%, rgba(255,255,255,0.45) 0%, transparent 100%);
+  animation: starsAppear 1.5s ease-out forwards, starsTwinkle 5s ease-in-out 1.5s infinite alternate;
 }
 
 body.weather-clear .sun-glow,
@@ -1746,3 +1858,41 @@ body.theme-light.weather-snow {
   50% { opacity: 1; transform: translateY(-50%) scaleX(1.15); }
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chipPing {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 184, 107, 0.65); }
+  60%  { box-shadow: 0 0 0 9px rgba(255, 184, 107, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 184, 107, 0); }
+}
+
+@keyframes iconPop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes tempFlip {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes starsAppear {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes starsTwinkle {
+  0%   { opacity: 0.65; }
+  35%  { opacity: 1; }
+  70%  { opacity: 0.50; }
+  100% { opacity: 0.85; }
+}
