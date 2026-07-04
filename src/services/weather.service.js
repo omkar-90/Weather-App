@@ -206,6 +206,12 @@ function mapOpenMeteoWeatherCode(code) {
   return { id: 801, main: "Clouds", description: "cloudy" };
 }
 
+async function getGeocodingSuggestions(query) {
+  ensureApiKey();
+  const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=5&appid=${env.openWeatherApiKey}`;
+  return fetchJsonOrThrow(url, "Locations not found.", "Geocoding service is unavailable.");
+}
+
 async function tryParseJson(response) {
   try {
     return await response.json();
@@ -217,4 +223,5 @@ async function tryParseJson(response) {
 module.exports = {
   getCurrentWeather,
   getForecast,
+  getGeocodingSuggestions,
 };

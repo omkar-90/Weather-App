@@ -300,6 +300,7 @@ const cardArtMap = {
 document.addEventListener("DOMContentLoaded", () => {
   const searchForm = document.getElementById("search-form");
   const cityInput = document.getElementById("city-input");
+  const searchSuggestions = document.getElementById("search-suggestions");
   const locationBtn = document.getElementById("location-btn");
   const themeToggle = document.getElementById("theme-toggle");
   const errorMessage = document.getElementById("error-message");
@@ -334,11 +335,65 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentLocationLabel = "";
   let currentHeroBaseline = null;
   let isSyncingHourlyScroll = false;
+  let activeSuggestionIndex = -1;
+  let suggestionsData = [];
 
   initializeTheme();
   bindEvents();
   initializeHourlyScrollSync();
   initializeWeatherApp();
+
+  function debounce(func, delay) {
+    let timeoutId;
+    return (...args) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        func.apply(this, args);
+      }, delay);
+    };
+  }
+
+  function renderSuggestions(locations) {
+    searchSuggestions.innerHTML = "";
+    activeSuggestionIndex = -1;
+    
+    if (!locations || locations.length === 0) {
+      searchSuggestions.hidden = true;
+      return;
+    }
+
+    locations.forEach((loc, index) => {
+      const li = document.createElement("li");
+      li.className = "suggestion-item";
+      li.innerHTML = `
+        <span class="suggestion-city">${loc.name}${loc.country ? `, ${loc.country}` : ""}</span>
+        ${loc.state ? '<span class="suggestion-state">' + loc.state + '</span>' : ""}
+      `;
+      li.addEventListener("click", async () => {
+        searchSuggestions.hidden = true;
+        activeSuggestionIndex = -1;
+        cityInput.value = loc.name;
+        await loadWeather({ lat: loc.lat, lon: loc.lon }, {
+          saveLocation: true,
+          locationLabel: `${loc.name}, ${loc.country}`
+        });
+      });
+      searchSuggestions.appendChild(li);
+    });
+
+    searchSuggestions.hidden = false;
+  }
+
+  function updateActiveSuggestion(items) {
+    items.forEach((item, index) => {
+      if (index === activeSuggestionIndex) {
+        item.classList.add("active");
+        item.scrollIntoView({ block: "nearest" });
+      } else {
+        item.classList.remove("active");
+      }
+    });
+  }
 
   function bindEvents() {
     searchForm.addEventListener("submit", async (event) => {
@@ -350,7 +405,60 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      searchSuggestions.hidden = true;
       await loadWeather({ city });
+    });
+
+    const handleInput = debounce(async (event) => {
+      const query = event.target.value.trim();
+      
+      if (query.length < 2) {
+        searchSuggestions.hidden = true;
+        suggestionsData = [];
+        return;
+      }
+
+      try {
+        const response = await fetch(`${WEATHER_API_BASE}/geocode?q=${encodeURIComponent(query)}`);
+        if (!response.ok) throw new Error();
+        suggestionsData = await response.json();
+        renderSuggestions(suggestionsData);
+      } catch (err) {
+        searchSuggestions.hidden = true;
+        suggestionsData = [];
+      }
+    }, 300);
+
+    cityInput.addEventListener("input", handleInput);
+
+    cityInput.addEventListener("keydown", (event) => {
+      if (searchSuggestions.hidden) return;
+
+      const items = searchSuggestions.querySelectorAll(".suggestion-item");
+      if (!items.length) return;
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
+        updateActiveSuggestion(items);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
+        updateActiveSuggestion(items);
+      } else if (event.key === "Enter" && activeSuggestionIndex >= 0) {
+        event.preventDefault();
+        items[activeSuggestionIndex].click();
+      } else if (event.key === "Escape") {
+        searchSuggestions.hidden = true;
+        activeSuggestionIndex = -1;
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!searchForm.contains(event.target)) {
+        searchSuggestions.hidden = true;
+        activeSuggestionIndex = -1;
+      }
     });
 
     locationBtn.addEventListener("click", async () => {

@@ -1,6 +1,6 @@
 const express = require("express");
 const path = require("path");
-const { getCurrentWeather, getForecast } = require("./services/weather.service");
+const { getCurrentWeather, getForecast, getGeocodingSuggestions } = require("./services/weather.service");
 
 const app = express();
 const rootDir = path.resolve(__dirname, "..");
@@ -44,6 +44,24 @@ app.get("/api/forecast", async (request, response) => {
   } catch (error) {
     response.status(error.statusCode || 500).json({
       message: error.message || "Unable to fetch forecast data.",
+    });
+  }
+});
+
+app.get("/api/geocode", async (request, response) => {
+  try {
+    const { q } = request.query;
+
+    if (!q || q.trim().length < 2) {
+      response.status(400).json({ message: "Provide a valid search query of at least 2 characters." });
+      return;
+    }
+
+    const locations = await getGeocodingSuggestions(q);
+    response.json(locations);
+  } catch (error) {
+    response.status(error.statusCode || 500).json({
+      message: error.message || "Unable to fetch geocoding data.",
     });
   }
 });
