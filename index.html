@@ -95,10 +95,33 @@
                   <div class="weather-icon" id="weather-icon"></div>
                 </div>
               </div>
-              <div class="meta">
-                <p class="location" id="city-name">Search for a city</p>
-                <p class="date-time" id="date-time">Live weather will appear here</p>
+              <div class="hero-bottom-row">
+                <div class="meta">
+                  <p class="location" id="city-name">Search for a city</p>
+                  <p class="date-time" id="date-time">Live weather will appear here</p>
+                </div>
+                
+                <div class="solar-card-compact">
+                  <svg class="solar-arc-svg" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
+                    <!-- Arc Background -->
+                    <path class="solar-arc-bg" d="M 20 90 A 80 80 0 0 1 180 90" fill="none" />
+                    <!-- Arc Progress -->
+                    <path class="solar-arc-progress" id="solar-progress" d="M 20 90 A 80 80 0 0 1 180 90" fill="none" />
+                    <!-- Horizon Line -->
+                    <line x1="0" y1="90" x2="200" y2="90" class="solar-horizon" />
+                    <!-- Indicator Group -->
+                    <g id="solar-indicator" class="solar-indicator" transform="translate(20, 90)">
+                      <circle cx="0" cy="0" r="6" fill="var(--accent-warm)" class="solar-sun-core" />
+                      <circle cx="0" cy="0" r="16" fill="var(--glow-warm)" class="solar-sun-glow" />
+                    </g>
+                  </svg>
+                  <div class="solar-times-compact">
+                    <strong id="sunrise-time">--:--</strong>
+                    <strong id="sunset-time">--:--</strong>
+                  </div>
+                </div>
               </div>
+              <p id="solar-status" hidden></p>
             </div>
 
             <div class="hero-aside">

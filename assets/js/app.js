@@ -671,6 +671,10 @@ document.addEventListener("DOMContentLoaded", () => {
       heroAside.classList.add("is-animating");
     }
 
+    if (typeof renderSolarArc === "function") {
+      renderSolarArc(weatherData);
+    }
+
     activeForecastDays = buildInteractiveForecastDays(forecastData, weatherData, currentSnapshot);
     selectForecastDay(0);
   }
@@ -1531,6 +1535,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function toTitleCase(value) {
     return value.replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function renderSolarArc(weatherData) {
+    const sunriseTimeEl = document.getElementById("sunrise-time");
+    const sunsetTimeEl = document.getElementById("sunset-time");
+    const solarStatusEl = document.getElementById("solar-status");
+    const solarProgressEl = document.getElementById("solar-progress");
+    const solarIndicator = document.getElementById("solar-indicator");
+
+    if (!sunriseTimeEl || !weatherData.sys || !weatherData.sys.sunrise) return;
+
+    const sunrise = weatherData.sys.sunrise;
+    const sunset = weatherData.sys.sunset;
+    const now = Math.floor(Date.now() / 1000);
+    const timezone = weatherData.timezone;
+
+    sunriseTimeEl.textContent = formatUnixTime(sunrise, timezone);
+    sunsetTimeEl.textContent = formatUnixTime(sunset, timezone);
+
+    let progress = 0;
+    if (now < sunrise) {
+      progress = 0;
+      solarStatusEl.textContent = "Before Sunrise";
+    } else if (now > sunset) {
+      progress = 1;
+      solarStatusEl.textContent = "After Sunset";
+    } else {
+      progress = (now - sunrise) / (sunset - sunrise);
+      solarStatusEl.textContent = "Daylight";
+    }
+
+    const arcLength = 251.327;
+    const dashOffset = arcLength * progress;
+    solarProgressEl.style.strokeDasharray = `${dashOffset} 252`;
+
+    const angle = Math.PI - (progress * Math.PI);
+    const x = 100 + 80 * Math.cos(angle);
+    const y = 90 - 80 * Math.sin(angle);
+    
+    solarIndicator.setAttribute("transform", `translate(${x}, ${y})`);
+    
+    const sunCore = solarIndicator.querySelector(".solar-sun-core");
+    const sunGlow = solarIndicator.querySelector(".solar-sun-glow");
+    if (now < sunrise || now > sunset) {
+      sunCore.setAttribute("fill", "#dbe7ff");
+      sunGlow.setAttribute("fill", "rgba(219, 231, 255, 0.2)");
+    } else {
+      sunCore.setAttribute("fill", "var(--accent-warm)");
+      sunGlow.setAttribute("fill", "var(--glow-warm)");
+    }
   }
 
 });
